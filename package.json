@@ -1,0 +1,27 @@
+{
+  "name": "exser",
+  "version": "1.0.0",
+  "description": "API Server for real projects",
+  "main": "index.js",
+  "scripts": {
+    "test": "node ./node_modules/jest/bin/jest.js --runInBand --verbose --forceExit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ylabio/exser.git"
+  },
+  "keywords": [
+    "api",
+    "rest",
+    "node.js",
+    "express",
+    "swagger",
+    "mock"
+  ],
+  "author": "Vladimir Shestakov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ylabio/exser/issues"
+  },
+  "homepage": "https://github.com/ylabio/exser#readme"
+}
