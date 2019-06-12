@@ -1,5 +1,5 @@
-const MongoClient = require('mongodb').MongoClient;
-const ObjectID = require('mongodb').ObjectID;
+const MongoDB = require('mongodb');
+const ObjectID = MongoDB.ObjectID;
 const {queryUtils, objectUtils, stringUtils} = require('../../utils');
 
 class Storage {
@@ -7,17 +7,16 @@ class Storage {
   constructor() {
   }
 
-  async init(config, services, mode) {
+  async init(config, services) {
     this.config = config;
     this.services = services;
     this.spec = await this.services.getSpec();
-    this._client = await MongoClient.connect(this.config.db.url, {useNewUrlParser: true});
+    this._client = await MongoDB.MongoClient.connect(this.config.db.url, {useNewUrlParser: true});
     this._db = this._client.db(this.config.db.name);
     this._collections = {};
-    if (mode === 'clear') {
+    if (config.mode === 'clear') {
       await this.clearStorage();
     }
-    //this.ObjectId = ObjectID;
     await this.initModels();
     await this.initCounter();
     return this;
@@ -67,7 +66,7 @@ class Storage {
    * @param options
    * @param schemes
    * @param service
-   * @returns {Promise.<*>}
+   * @returns {Promise.<MongoDB.Collection>}
    */
   async define({type, collection, indexes, options, schemes}, service) {
     if (!collection) {
@@ -137,11 +136,11 @@ class Storage {
   /**
    *
    * @param type
-   * @returns {Collection}
+   * @returns {Model}
    */
-  getCollectionService(type) {
+  getModelService(type) {
     if (!this._collections[type]) {
-      throw new Error('Collection service "' + type + '" not found');
+      throw new Error('Model service "' + type + '" not found');
     }
     return this._collections[type];
   }
@@ -150,7 +149,7 @@ class Storage {
    *
    * @param type
    * @param base
-   * @return {(Collection|*)}
+   * @return {(Model|*)}
    */
   get(type, base = '') {
     if (base) {
@@ -158,7 +157,7 @@ class Storage {
         type = base + (type ? '-' + type : '');
       }
     }
-    return this.getCollectionService(type);
+    return this.getModelService(type);
   }
 
   /**
@@ -252,7 +251,7 @@ class Storage {
   async loadRel({rel, fields, session}) {
     try {
       if (rel._id && rel._type) {
-        return await this.getCollectionService(rel._type).getOne({
+        return await this.getModelService(rel._type).getOne({
           filter: {_id: new ObjectID(rel._id)},
           fields,
           session
@@ -264,7 +263,7 @@ class Storage {
   }
 
   async clearStorage() {
-    let list = await this._db.listCollections().toArray();
+    let list = await this._db.listModels().toArray();
     for (let collection of list) {
       if (collection.name.indexOf('system.') === -1) {
         await this._db.dropCollection(collection.name);

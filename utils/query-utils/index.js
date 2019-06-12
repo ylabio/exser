@@ -1,6 +1,8 @@
 const escapeStringRegexp = require('escape-string-regexp');
 const ObjectID = require('mongodb').ObjectID;
 const moment = require('moment');
+const objectUtils = require('./../object-utils');
+
 const queryUtils = {
 
   /**
@@ -145,6 +147,13 @@ const queryUtils = {
     } catch (e) {
       throw {message: 'Incorrect fields format', name: 'ParseFieldsException'};
     }
+  },
+
+  inFields: (fields, prop, strick = false) => {
+    const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
+    // @todo проверка в *
+
+    return objectUtils.get(obj, prop, false);
   },
 
   /**

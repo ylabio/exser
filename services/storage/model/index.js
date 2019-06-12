@@ -1,10 +1,12 @@
 const ObjectID = require('mongodb').ObjectID;
 const moment = require('moment');
 const {errors, queryUtils, objectUtils, stringUtils} = require('../../../utils');
+const deepEqual = require('deep-equal');
 
-class Index {
+class Model {
 
   constructor() {
+
   }
 
   type() {
@@ -21,7 +23,7 @@ class Index {
   /**
    * @param config
    * @param services {Services}
-   * @returns {Promise.<Index>}
+   * @returns {Promise.<Model>}
    */
   async init(config, services) {
     this.config = config;
@@ -46,6 +48,7 @@ class Index {
     // if (Object.keys(this._links).length) {
     //   console.log(this.type(), this._links);
     // }
+    this.changes = {};
     return this;
   }
 
@@ -149,7 +152,7 @@ class Index {
    * @param fields Какие поля выбрать, если view == true (с учётом схему валидации)
    * @param session Объект сессии с авторизованным юзером, языком
    * @param throwNotFound Исключение, если объект не найден
-   * @returns {Promise.<*>}
+   * @returns {Promise.<Object>}
    */
   async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true}) {
     const pFields = queryUtils.parseFields(fields) || fields || {};
@@ -179,14 +182,17 @@ class Index {
                   filter = {}, sort = {}, limit = 10, skip = 0, view = true, fields = {'*': 1},
                   session, isDeleted = true
                 }) {
-    if (isDeleted) {
-      filter = Object.assign({$or: [{isDeleted: false}, {isDeleted: {$exists: false}}]}, filter);
+    if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
+      filter = Object.assign({isDeleted: false}, filter);
     }
-    let list = await this.native.find(filter)
+    const query = await this.native.find(filter)
       .sort(sort)
-      .skip(parseInt(skip) || 0)
-      .limit(parseInt(limit) || 10)
-      .toArray();
+      .skip(parseInt(skip) || 0);
+    if (limit !== '*') {
+      query.limit(parseInt(limit) || 10);
+    }
+
+    let list = await query.toArray();
 
     if (view) {
       list = await this.viewList(list, {fields, session, view});
@@ -201,6 +207,62 @@ class Index {
     }
 
     return list;
+  }
+
+  async getListChanges({key, ...params}) {
+    const current = await this.getList({...params});
+    let result = {
+      add: null,
+      remove: null,
+      change: null,
+      items: null
+    };
+    let items = Array.isArray(current) ? current : current.items;
+    if ('count' in current) {
+      result.count = current.count;
+    }
+    if (!this.changes[key]) {
+      result.items = items;
+    } else {
+      const prevItems = this.changes[key].items;
+      const prevIndex = this.changes[key].index;
+      result.add = [];
+      result.change = [];
+      // Новые и измененные объекты
+      for (const item of items) {
+        if (!(item._id in prevIndex)) {
+          result.add.push(item);
+        } else if (!deepEqual(item, prevItems[prevIndex[item._id]])) {
+          result.change.push(item);
+        }
+        delete prevIndex[item._id];
+      }
+      // Отсутствующие объекты
+      const delIds = Object.keys(prevIndex);
+      result.remove = [];
+      for (const id of delIds) {
+        result.remove.push(prevItems[prevIndex[id]]);
+      }
+    }
+    this.changes[key] = {
+      items: items,
+      index: {},
+      date: (new Date()).getTime()
+    };
+    items.forEach((item, index) => {
+      this.changes[key].index[item._id] = index;
+    });
+    // Чистка старых данных
+    if (Math.random() > 0.5) {
+      const badDate = (new Date()).getTime() - this.config.changes.lifetime;
+      const changeKeys = Object.keys(this.changes);
+      for (const changeKey of changeKeys) {
+        if (this.changes[changeKey].date < badDate) {
+          delete this.changes[changeKey];
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -980,4 +1042,4 @@ class Index {
 
 }
 
-module.exports = Index;
+module.exports = Model;

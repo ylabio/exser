@@ -133,15 +133,17 @@ module.exports = {
     }
   },
 
-  // tasks: {
-  //   starters: {
-  //     // 'files-cleanup': {
-  //     //   interval: 24 * 60 * 60, //каждый день в секундах
-  //     // },
-  //   }
-  // },
+  example: {
+    xxx: 0
+  },
 
-  // initialize: {
-  //   starters: {}
-  // },
+  tasks: {
+    example: {
+      service: 'example',
+      interval: null, // ms
+      iterations: 1,
+      someOption: 'xxx',
+      log: false
+    }
+  },
 };

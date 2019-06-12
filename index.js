@@ -1,14 +1,21 @@
 const Services = require('./services');
-/**
- * Start REST API
- */
+const args = process.argv.slice(2);
+
 (async () => {
   const services = new Services().configure();
-
-  // Сервис с express сервером и настроенным роутингом
-  const restApi = await services.getRestAPI();
-  await restApi.start();
-
-  console.log(`Server run on ${restApi.config.url}, swagger: ${restApi.config.url}/docs`);
-
+  if (args.length && args[0] === '--task') {
+    // Управление задачами
+    const tasks = await services.getTasks();
+    await tasks.start(...args.slice(1));
+  } else {
+    // API сервер
+    const restApi = await services.getRestApi();
+    await restApi.start();
+    console.log(`REST API: ${restApi.config.url}, docs: ${restApi.config.url}/docs`);
+  }
 })();
+
+process.on('unhandledRejection', function (reason/*, p*/) {
+  console.error(reason);
+  process.exit(1);
+});

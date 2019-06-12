@@ -10,7 +10,7 @@ describe('Storage', () => {
   beforeAll(async () => {
     s.services = await require('../../init-spec');
     // s.test = await s.services.getTest();
-    s.storage = await s.services.getStorage('clear');
+    s.storage = await s.services.getStorage({mode:'clear'});
     s.objects = s.storage.get('object');
 
     data.session = {

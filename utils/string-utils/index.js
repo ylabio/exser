@@ -1,6 +1,8 @@
 const bluebird = require('bluebird');
 const crypto = require('crypto');
 bluebird.promisifyAll(crypto);
+const camelCase = require('lodash.camelcase');
+const upperFirst = require('lodash.upperfirst');
 
 const stringUtils = {
 
@@ -27,6 +29,14 @@ const stringUtils = {
 
   toDash(value) {
     return value.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+  },
+
+  toCamelCase(value) {
+    return camelCase(value);
+  },
+
+  tuUpperFirst(value){
+    return upperFirst(value);
   }
 };
 
