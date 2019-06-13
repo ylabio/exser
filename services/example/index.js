@@ -9,10 +9,10 @@ class Example {
   }
 
   async start(params) {
-    console.log('Params:', params);
-    console.log('Config:', this.config);
-
-    return true;
+    console.log('- Work example');
+    //console.log('Params:', params);
+    // console.log('Config:', this.config);
+    return 'Result of example task';
   }
 }
 

@@ -26,7 +26,7 @@ class Tasks {
       const taskService = await this.services.get(this.config[taskName].service || taskName, params);
 
       let iteration = 0;
-      const loop = async () => {
+      const loop = async (resolve, reject) => {
         try {
           if (params.log) {
             console.log(`# Start ${taskName} at ${moment().format('HH:mm:ss')}`);
@@ -40,25 +40,25 @@ class Tasks {
             (!params.iterations || iteration < params.iterations) &&
             (params.interval || params.interval === 0)
           ) {
-            setTimeout(loop, params.interval);
+            setTimeout(()=>loop(resolve, reject), params.interval);
+          } else {
+            resolve();
           }
         } catch (e) {
           if (params.log) {
             console.error(`# Error ${taskName}: "${e.toString()}" at ${moment().format('HH:mm:ss')}. =`);
           }
-          throw e;
+          reject(e);
         }
       };
 
-      await new Promise((resolve, reject) => {
-        loop().catch(e => {
+      return new Promise((resolve, reject) => {
+        loop(resolve, reject).catch(e => {
           reject(e)
         });
       });
-      //process.exit(0);
     } else {
       console.error(`Unknown task name "${taskName}"`);
-      //process.exit(1);
     }
   }
 }

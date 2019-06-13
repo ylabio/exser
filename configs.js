@@ -140,10 +140,10 @@ module.exports = {
   tasks: {
     example: {
       service: 'example',
-      interval: null, // ms
-      iterations: 1,
+      interval: 500, // ms
+      iterations: 3,
       someOption: 'xxx',
-      log: false
+      log: true
     }
   },
 };
