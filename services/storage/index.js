@@ -263,7 +263,7 @@ class Storage {
   }
 
   async clearStorage() {
-    let list = await this._db.listModels().toArray();
+    let list = await this._db.listCollections().toArray();
     for (let collection of list) {
       if (collection.name.indexOf('system.') === -1) {
         await this._db.dropCollection(collection.name);

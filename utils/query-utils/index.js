@@ -152,8 +152,7 @@ const queryUtils = {
   inFields: (fields, prop, strick = false) => {
     const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
     // @todo проверка в *
-
-    return objectUtils.get(obj, prop, false);
+    return objectUtils.get(obj || {}, prop, false);
   },
 
   /**
