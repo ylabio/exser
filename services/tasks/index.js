@@ -19,8 +19,14 @@ class Tasks {
       if (typeof params.log === 'undefined'){
         params.log = true;
       }
+      if (params.log === 'false'){
+        params.log = false;
+      }
       if (typeof params.iterations === 'undefined'){
-        params.log = 0;
+        params.iterations = 0;
+      }
+      if (!params.log) {
+        console.log(`# Start ${taskName} (without logs)`);
       }
 
       const taskService = await this.services.get(this.config[taskName].service || taskName, params);
