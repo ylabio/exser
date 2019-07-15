@@ -403,8 +403,8 @@ class Model {
         if (objectNew._type !== 'history') {
           //const history = await this.storage.get('history');
           const diff = objectUtils.getChanges(prev, objectNew, ['dateUpdate']);
-          if (this.onChange){
-            this.onChange({prev, object: objectNew, diff});
+          if (Object.keys(diff).length) {
+            await this.onChange({prev, object: objectNew, diff});
           }
           // const historyBody = {
           //   relative: {
@@ -579,7 +579,7 @@ class Model {
     }
   }
 
-  async onChange({prev, object, diff}){
+  async onChange({prev, object, diff}) {
 
   }
 

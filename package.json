@@ -1,6 +1,6 @@
 {
   "name": "exser",
-  "version": "1.0.19",
+  "version": "1.0.21",
   "description": "API Server for real projects",
   "main": "exser.js",
   "scripts": {
