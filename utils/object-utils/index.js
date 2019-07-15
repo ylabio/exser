@@ -3,7 +3,7 @@ const {merge, mergeAll, clone} = require('./merge.js');
 
 const objectUtils = {
 
-  convertForSet: (object) => {
+  convertForSet: (object, clearUndefined = false) => {
     let keys = Object.keys(object);
     let result = {};
     for (let key of keys) {
@@ -24,7 +24,9 @@ const objectUtils = {
           }
         }
       } else {
-        result[key] = object[key];
+        if (!clearUndefined || typeof object[key] !== 'undefined') {
+          result[key] = object[key];
+        }
       }
     }
     return result;
@@ -155,6 +157,29 @@ const objectUtils = {
       }
     }
     return object;
+  },
+
+  getChanges: (source = {}, compare = {}, ignore = []) => {
+    let result = {};
+    const obj1 = objectUtils.convertForSet(source);
+    const obj2 = objectUtils.convertForSet(compare);
+    const keys = Object.keys(obj2);
+    for (const key of keys) {
+      if (ignore.indexOf(key) === -1) {
+        let eq = false;
+        if (obj1[key] instanceof ObjectID && obj2[key] instanceof ObjectID) {
+          eq = obj2[key].equals(obj1[key]);
+        } else if (obj1[key] instanceof Date && obj2[key] instanceof Date) {
+          eq = obj1[key].getTime() === obj2[key].getTime();
+        } else {
+          eq = obj2[key] === obj1[key];
+        }
+        if (!eq) {
+          result[key] = obj2[key];
+        }
+      }
+    }
+    return result;
   },
 
   merge: merge,

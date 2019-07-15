@@ -281,9 +281,9 @@ class Model {
       const prepareDefault = async (object) => {
         object._id = new ObjectID();
         object._type = this.type();
-        object.dateCreate = moment().toDate();
-        object.dateUpdate = moment().toDate();
-        object.isDeleted = false;
+        object.dateCreate = 'dateCreate' in object ? object.dateCreate : moment().toDate();
+        object.dateUpdate = 'dateUpdate' in object ? object.dateUpdate : moment().toDate();
+        object.isDeleted = 'isDeleted' in object ? object.isDeleted : false;
       };
       await (prepare ? prepare(prepareDefault, object) : prepareDefault(object));
 
@@ -355,12 +355,12 @@ class Model {
       // Системная установка/трансформация свойств
       const prepareDefault = (object, prev) => {
         object.dateUpdate = moment().toDate();
-        object.isNew = false;
+        //object.isNew = false;
       };
       await (prepare ? prepare(prepareDefault, object, prev) : prepareDefault(object, prev));
 
       // Конвертация в плоский объект
-      let $set = objectUtils.convertForSet(object);
+      let $set = objectUtils.convertForSet(object, true);
 
       let result = await this.native.updateOne({_id}, {$set});
 
@@ -398,6 +398,23 @@ class Model {
           setPrev: prev, // старый объект для рекурсивного обхода
           changes: object // изменения
         });
+
+        // добавление записи в истории
+        if (objectNew._type !== 'history') {
+          //const history = await this.storage.get('history');
+          const diff = objectUtils.getChanges(prev, objectNew, ['dateUpdate']);
+          if (this.onChange){
+            this.onChange({prev, object: objectNew, diff});
+          }
+          // const historyBody = {
+          //   relative: {
+          //     _id: id,
+          //     _type: prev._type,
+          //   },
+          //   diff,
+          // };
+          //await history.createOne({body: historyBody, session});
+        }
 
         return view ? await this.view(objectNew, {fields, session, view}) : objectNew;
       }
@@ -562,6 +579,10 @@ class Model {
     }
   }
 
+  async onChange({prev, object, diff}){
+
+  }
+
   /**
    * Конвертация типов mongodb в типы JS
    * @param obj
@@ -693,7 +714,7 @@ class Model {
           }
         }
       }
-    } else if (typeof set === 'object') {
+    } else if (typeof set === 'object' && set) {
       if (!set) {
         console.log(path, setPrev);
       }
