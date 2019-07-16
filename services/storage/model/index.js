@@ -334,15 +334,20 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, schema = 'update'}) {
-    try {
-      let object = objectUtils.clone(body);
-      const _id = new ObjectID(id);
-
-      if (!prev) {
-        prev = await this.native.findOne({_id});
+  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, schema = 'update'}) {
+    let object = objectUtils.clone(body);
+    if (!prev) {
+      if (id){
+        filter = {_id: new ObjectID(id)};
       }
-
+      prev = await this.native.findOne(filter);
+    }
+    if (!prev){
+      console.log(filter, body);
+      throw new errors.NotFound({filter}, 'Not found for update');
+    }
+    let _id = prev._id;
+    try {
       // Валидация с возможностью переопредления
       const validateDefault = (object) => this.validate(schema, object, session);
       object = await (validate ? validate(validateDefault, object, prev) : validateDefault(object, prev));
