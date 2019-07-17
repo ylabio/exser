@@ -138,10 +138,10 @@ const queryUtils = {
     // formatted = '{' + formatted.replace(/\)/g, '}') + '}';
 
     let formatted = fieldsString.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*(,|$|\)|\})/uig, '"$1":1$2');
-    console.log(formatted);
+    //console.log(formatted);
     formatted = formatted.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*(\(|\{)/uig, '"$1":{');
     formatted = '{' + formatted.replace(/\)/g, '}') + '}';
-    console.log(formatted);
+    //console.log(formatted);
     try {
       return queryUtils.parseFieldIgnore(JSON.parse(formatted));
     } catch (e) {

@@ -323,6 +323,14 @@ class Model {
         set: result
       });
 
+      if (result._type !== 'history') {
+        //const history = await this.storage.get('history');
+        const diff = objectUtils.getChanges({}, result);
+        if (Object.keys(diff).length) {
+          await this.onCreate({object: result, diff, session});
+        }
+      }
+
       // Подготовка на вывод
       return view ? await this.view(result, {fields, session, view}) : result;
     } catch (e) {
@@ -334,7 +342,7 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, schema = 'update'}) {
+  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update'}) {
     let object = objectUtils.clone(body);
     if (!prev) {
       if (id){
@@ -343,8 +351,11 @@ class Model {
       prev = await this.native.findOne(filter);
     }
     if (!prev){
-      console.log(filter, body);
-      throw new errors.NotFound({filter}, 'Not found for update');
+      if (upsert && !body._id){
+        return await this.createOne({body, view, fields, session});
+      } else {
+        throw new errors.NotFound({filter}, 'Not found for update');
+      }
     }
     let _id = prev._id;
     try {
