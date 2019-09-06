@@ -11,7 +11,10 @@ class Storage {
     this.config = config;
     this.services = services;
     this.spec = await this.services.getSpec();
-    this._client = await MongoDB.MongoClient.connect(this.config.db.url, {useNewUrlParser: true});
+    this._client = await MongoDB.MongoClient.connect(this.config.db.url, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
     this._db = this._client.db(this.config.db.name);
     this._collections = {};
     if (config.mode === 'clear') {
