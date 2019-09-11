@@ -50,7 +50,7 @@ module.exports = class MyServices extends Services {
 };
 ```
 
-Новый сервис в проекте. Метод `init()` получает конфишурацию сервиса и экземпляр менеджера сервисов.
+Новый сервис в проекте. Метод `init()` получает конфигурацию сервиса и экземпляр менеджера сервисов.
 ```js
 // services/mail/index.js
 const nodemailer = require('nodemailer');
@@ -77,16 +77,19 @@ const Services = require('./services');
 (async () => {
   const services = new Services().configure('configs.js', 'configs.local.js');
   const args = process.argv.slice(2);
+  
   if (args.length && args[0] === '--task') {
-    // Управление задачами серсивом задач
+      // Управление задачами сервисом задач (запуск через CLI)
     const tasks = await services.getTasks();
     await tasks.start(...args.slice(1));
     process.exit(0);
+    
   } else {
-    // HTTP сервер
+      // HTTP сервер
     const restApi = await services.getRestApi();
     await restApi.start();
     console.log(`REST API: ${restApi.config.url}, docs: ${restApi.config.url}/docs`);
+    
   }
 })();
 ```
