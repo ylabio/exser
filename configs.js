@@ -70,6 +70,7 @@ module.exports = {
   },
 
   spec: {
+    extend: require('./services/spec/extend.js'),
     default: {
       openapi: '3.0.0',
       info: {

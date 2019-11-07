@@ -147,10 +147,10 @@ class Spec {
     this.config = config;
     this.services = services;
     this.specification = objectUtils.merge(this.specification, config.default);
-    this.schemas(require('./schemas'));
-    this.responses(require('./responses'));
-    this.parameters(require('./parameters'));
-    this.generates = require('./generate');
+    this.schemas(config.extend.schemas);
+    this.responses(config.extend.responses);
+    this.parameters(config.extend.parameters);
+    this.generates = config.extend.generate;
     this.storage = await this.services.getStorage();
     return this;
   }
