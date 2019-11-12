@@ -279,7 +279,7 @@ class Model {
 
       // Системная установка/трансформация свойств
       const prepareDefault = async (object) => {
-        object._id = new ObjectID();
+        object._id = object._id || new ObjectID();
         object._type = this.type();
         object.dateCreate = 'dateCreate' in object ? object.dateCreate : moment().toDate();
         object.dateUpdate = 'dateUpdate' in object ? object.dateUpdate : moment().toDate();
