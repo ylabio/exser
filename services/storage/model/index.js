@@ -100,7 +100,7 @@ class Model {
       create: this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Создание`,
         properties: {
-          $unset: ['_id', '_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew'],
+          $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew'],
         },
       }),
 
@@ -279,7 +279,7 @@ class Model {
 
       // Системная установка/трансформация свойств
       const prepareDefault = async (object) => {
-        object._id = new ObjectID();
+        object._id = object._id ? ObjectID(object._id) : new ObjectID();
         object._type = this.type();
         object.dateCreate = 'dateCreate' in object ? object.dateCreate : moment().toDate();
         object.dateUpdate = 'dateUpdate' in object ? object.dateUpdate : moment().toDate();
