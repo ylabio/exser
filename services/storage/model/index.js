@@ -109,7 +109,7 @@ class Model {
           title: `${this._define.model.title}. Изменение`,
           properties: {
             $unset: [
-              '_id', '_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew'
+              '_id', '_type', 'dateCreate', 'dateUpdate', 'isNew'
             ]
           },
           $set: {
@@ -514,6 +514,33 @@ class Model {
       session,
       schema: 'delete'
     });
+  }
+
+  /**
+   * Пометка объекта как удаленный
+   * @param id
+   * @returns {Promise.<Object>}
+   */
+  async deleteMany({filter = {}/*, fields = {'*': 1, 'isDeleted': 1}*/, session}) {
+    // По всем связям оповестить об изменении isDelete
+    // const pFields = queryUtils.parseFields(fields) || fields || {};
+    // pFields.isDeleted = 1;
+    filter = Object.assign({isDeleted: false}, filter);
+    let result = 0;
+    let cursor = this.native.find(filter);
+    while (await cursor.hasNext()) {
+      const object = await cursor.next();
+      await this.updateOne({
+        id: object._id,
+        body: {isDeleted: true},
+        //fields: pFields,
+        session,
+        schema: 'delete',
+        view: false
+      });
+      result++;
+    }
+    return result;
   }
 
   /**
