@@ -308,7 +308,22 @@ const queryUtils = {
               });
             } else {
               $in.push({
-                $qe: moment(values[0]).toDate()
+                $eq: moment(values[0]).toDate()
+              });
+            }
+            break;
+          case 'range':
+            values = value.split(';');
+            if (values.length === 2) {
+              const greaterThan = values[0];
+              const lessThan = values[1];
+              $in.push({
+                ...greaterThan ? {$gte: greaterThan} : {},
+                ...lessThan ? {$lte: lessThan} : {},
+              });
+            } else {
+              $in.push({
+                $eq: values[0]
               });
             }
             break;
