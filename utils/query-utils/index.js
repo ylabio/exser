@@ -331,8 +331,8 @@ const queryUtils = {
           case 'range-dates':
             values = value.split(';');
             if (values.length === 2) {
-              const greaterThan = moment(values[0].toDate());
-              const lessThan = moment(values[1].toDate());
+              const greaterThan = moment(values[0]).toDate();
+              const lessThan = moment(values[1]).toDate();
               $in.push({
                 ...greaterThan ? {$gte: greaterThan} : {},
                 ...lessThan ? {$lte: lessThan} : {},
