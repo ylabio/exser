@@ -334,8 +334,8 @@ const queryUtils = {
               const greaterThan = values[0] ? moment(values[0]).toDate() : '';
               const lessThan = values[1] ? moment(values[1]).toDate() : '';
               $in.push({
-                ...greaterThan ? {$gte: greaterThan} : {},
-                ...lessThan ? {$lte: lessThan} : {},
+                ...greaterThan ? {$gte: greaterThan.toISOString()} : {},
+                ...lessThan ? {$lte: lessThan.toISOString()} : {},
               });
             } else {
               $in.push({
