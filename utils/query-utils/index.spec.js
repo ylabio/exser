@@ -9,7 +9,7 @@ describe('Parse fields parameter', () => {
 
   test('parse empty field', () => {
     let fields = queryUtils.parseFields('');
-    expect(fields).toEqual(null);
+    expect(fields).toEqual(undefined);
   });
 
   test('parse two plain fields', () => {

@@ -131,7 +131,7 @@ const queryUtils = {
       return fieldsString;
     }
     if (!fieldsString || typeof fieldsString !== 'string') {
-      return null;
+      return undefined;
     }
     // let formatted = fieldsString.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([,$)}])/uig, '"$1":1$2');
     // formatted = formatted.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([({])/uig, '"$1":{');
