@@ -582,12 +582,7 @@ class Model {
       ? {type: true, schema: true, fields: true}
       : options.view || {};
 
-    if (options.from === 'viewList'){
-      object = await this.viewListAppend(object, options);
-    } else {
-      object = await this.viewAppend(object, options);
-    }
-
+    let source = object;
     if (_view.type || _view.schema) {
       object = await this.reconvertTypes(object);
     }
@@ -603,6 +598,13 @@ class Model {
         {object, fields: options.fields, session: options.session || {}}
       );
     }
+
+    if (options.from === 'viewList'){
+      object = await this.viewListAppend(object, options, source);
+    } else {
+      object = await this.viewAppend(object, options, source);
+    }
+
     return object;
   }
 
@@ -616,7 +618,7 @@ class Model {
   async viewList(list, options = {}, limit = 0) {
     options.fields = (typeof options.fields === 'string') ? queryUtils.parseFields(options.fields) : options.fields;
     if (!options.fields.items){
-      options.fields.items = options.fields;
+      options.fields = {items: options.fields};
     }
     options.from = 'viewList';
     options.schema = 'viewList';
@@ -632,7 +634,7 @@ class Model {
    * @param options
    * @returns {Promise<*>}
    */
-  async viewAppend(object, options = {}) {
+  async viewAppend(object, options = {}, source) {
     // @example
     if (options.from !== 'viewList') {
       // Только при выборке одного объекта
@@ -648,7 +650,7 @@ class Model {
    * @param options
    * @returns {Promise<void>}
    */
-  async viewListAppend(list, options = {}) {
+  async viewListAppend(list, options = {}, source) {
     if (options.fields['count']) {
       list.count = await this.getCount(options);
     }
