@@ -5,7 +5,7 @@ const ObjectID = require('mongodb').ObjectID;
 /**
  * Для тестирования
  */
-class Index extends Model {
+class Test extends Model {
 
   define() {
     const parent = super.define();
@@ -24,14 +24,14 @@ class Index extends Model {
             type: 'array',
             items: this.spec.generate('rel', {
               description: 'Подчиненные объекты',
-              type: 'object',
+              type: 'test',
               inverse: 'parent',
               copy: 'name'
             })
           },
           parent: this.spec.generate('rel', {
             description: 'Родительский клуб',
-            type: 'object',
+            type: 'test',
             inverse: 'children',
             copy: 'name',
             tree: 'custom',
@@ -48,45 +48,8 @@ class Index extends Model {
   }
 
   schemes() {
-    return {
-      // Схема создания
-      create: this.spec.extend(this._define.model, {
-        title: 'Test (создание)',
-        properties: {
-          $unset: [
-            '_id', '_type',
-            'dateCreate', 'dateUpdate', 'isDeleted'
-          ]
-        }
-      }),
-
-      // Схема редактирования
-      update: this.spec.extend(this._define.model, {
-          title: 'Test (изменение)',
-          properties: {
-            $unset: [
-              '_id', '_type',
-              'dateCreate', 'dateUpdate'
-            ]
-          },
-          $set: {
-            required: []
-          },
-          $mode: 'update'
-        }
-      ),
-
-      // Схема просмотра
-      view: this.spec.extend(this._define.model, {
-          title: 'Test (просмотр)',
-          $set: {
-            required: []
-          },
-          $mode: 'view'
-        }
-      ),
-    };
+    return this.spec.extend(super.schemes(), {});
   }
 }
 
-module.exports = Index;
+module.exports = Test;

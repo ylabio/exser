@@ -11,7 +11,7 @@ describe('Storage', () => {
     s.services = await require('../../init-spec');
     // s.test = await s.services.getTest();
     s.storage = await s.services.getStorage({mode:'clear'});
-    s.objects = s.storage.get('object');
+    s.objects = s.storage.get('test');
 
     data.session = {
       user: {
@@ -22,7 +22,6 @@ describe('Storage', () => {
   });
 
   test('Добавление/удаление объекта', async () => {
-    // Создание действия и привязка к игре
     const newObj = await s.objects.createOne({
       body: {
         name: 'Test'
@@ -42,6 +41,24 @@ describe('Storage', () => {
     expect(delObj).toMatchObject({
       name: 'Test',
       isDeleted: true
+    });
+  });
+
+  test('Выборка списка с count', async () => {
+    for (let i=0; i<20; i++) {
+      await s.objects.createOne({
+        body: {
+          name: 'Test'+i
+        },
+        session: data.session
+      });
+    }
+
+    let list = await s.objects.getList({limit: 2, fields:'items(name),count'});
+
+    expect(list.count).toEqual(20);
+    expect(list.items[0]).toMatchObject({
+      name: 'Test0'
     });
   });
 
@@ -360,31 +377,31 @@ describe('Storage', () => {
     // проверка списка
     const list1 = await s.objects.getList({sort: {'order': 1}, fields: '_id,name,order'});
 
-    expect(list1[0]).toMatchObject({name: '2', order: 1});
-    expect(list1[1]).toMatchObject({name: '3', order: 2});
-    expect(list1[2]).toMatchObject({name: '4', order: 3});
-    expect(list1[3]).toMatchObject({name: '1', order: 4});
-    expect(list1[4]).toMatchObject({name: '5', order: 5});
-    expect(list1[5]).toMatchObject({name: '6', order: 6});
-    expect(list1[6]).toMatchObject({name: '7', order: 7});
-    expect(list1[7]).toMatchObject({name: '8', order: 8});
-    expect(list1[8]).toMatchObject({name: '9', order: 9});
-    expect(list1[9]).toMatchObject({name: '10', order: 10});
+    expect(list1.items[0]).toMatchObject({name: '2', order: 1});
+    expect(list1.items[1]).toMatchObject({name: '3', order: 2});
+    expect(list1.items[2]).toMatchObject({name: '4', order: 3});
+    expect(list1.items[3]).toMatchObject({name: '1', order: 4});
+    expect(list1.items[4]).toMatchObject({name: '5', order: 5});
+    expect(list1.items[5]).toMatchObject({name: '6', order: 6});
+    expect(list1.items[6]).toMatchObject({name: '7', order: 7});
+    expect(list1.items[7]).toMatchObject({name: '8', order: 8});
+    expect(list1.items[8]).toMatchObject({name: '9', order: 9});
+    expect(list1.items[9]).toMatchObject({name: '10', order: 10});
 
     // Перемещение 9 -> 3
     await s.objects.updateOne({id: list1[8]._id, body: {order: 3}});
     // проверка списка
     const list2 = await s.objects.getList({sort: {'order': 1}, fields: '_id,name,order'});
-    expect(list2[0]).toMatchObject({name: '2', order: 1});
-    expect(list2[1]).toMatchObject({name: '3', order: 2});
-    expect(list2[3]).toMatchObject({name: '4', order: 4});
-    expect(list2[4]).toMatchObject({name: '1', order: 5});
-    expect(list2[5]).toMatchObject({name: '5', order: 6});
-    expect(list2[6]).toMatchObject({name: '6', order: 7});
-    expect(list2[7]).toMatchObject({name: '7', order: 8});
-    expect(list2[8]).toMatchObject({name: '8', order: 9});
-    expect(list2[2]).toMatchObject({name: '9', order: 3});
-    expect(list2[9]).toMatchObject({name: '10', order: 10});
+    expect(list2.items[0]).toMatchObject({name: '2', order: 1});
+    expect(list2.items[1]).toMatchObject({name: '3', order: 2});
+    expect(list2.items[3]).toMatchObject({name: '4', order: 4});
+    expect(list2.items[4]).toMatchObject({name: '1', order: 5});
+    expect(list2.items[5]).toMatchObject({name: '5', order: 6});
+    expect(list2.items[6]).toMatchObject({name: '6', order: 7});
+    expect(list2.items[7]).toMatchObject({name: '7', order: 8});
+    expect(list2.items[8]).toMatchObject({name: '8', order: 9});
+    expect(list2.items[2]).toMatchObject({name: '9', order: 3});
+    expect(list2.items[9]).toMatchObject({name: '10', order: 10});
   });
 
   test('Счётчик', async () => {

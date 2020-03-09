@@ -1,4 +1,3 @@
-const config = require('../config-spec.js');
 const Services = require('./index');
 
 /**
@@ -6,4 +5,4 @@ const Services = require('./index');
  * Импортируется в тестах
  * @type {Promise.<Services>}
  */
-module.exports = new Services().init(config);
+module.exports = new Services().configure('configs.js', 'configs-spec.js');

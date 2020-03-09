@@ -95,17 +95,16 @@ class Model {
    * @returns {{}}
    */
   schemes() {
-    return {
-      // Схема создания
-      create: this.spec.extend(this._define.model, {
+    let schemes = {};
+    // Схема создания
+    schemes.create = this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Создание`,
         properties: {
           $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew'],
         },
-      }),
-
-      // Схема редактирования
-      update: this.spec.extend(this._define.model, {
+      });
+    // Схема редактирования
+    schemes.update = this.spec.extend(this._define.model, {
           title: `${this._define.model.title}. Изменение`,
           properties: {
             $unset: [
@@ -117,10 +116,9 @@ class Model {
           },
           $mode: 'update'
         }
-      ),
-
-      // Схема просмотра
-      view: this.spec.extend(this._define.model, {
+      );
+    // Схема просмотра
+    schemes.view = this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Просмотр`,
         properties: {
           $unset: []
@@ -129,9 +127,18 @@ class Model {
           required: []
         },
         $mode: 'view'
-      }),
-
-      delete: this.spec.extend(this._define.model, {
+      });
+    // Схема просмотра для спсика
+    schemes.viewList = {
+        title: `${this._define.model.title}. Просмотр списка`,
+        properties: {
+          // используем схему view для каждого объекта в списке
+          items: {type: 'array', items: this.spec.extend(schemes.view, {})},
+          count: {type: 'integer', description: 'Количество объектов без учёта limit и skip'}
+        }
+      };
+    // Схема для запроса на удаление (отметка признака удаления)
+    schemes.delete = this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Удаление`,
         //properties: {
         // $leave: [
@@ -141,8 +148,8 @@ class Model {
         $set: {
           required: ['isDeleted']
         },
-      })
-    };
+      });
+    return schemes;
   }
 
   /**
@@ -176,10 +183,11 @@ class Model {
    * @param fields
    * @param session
    * @param isDeleted
-   * @returns {Promise.<Array>}
+   * @returns {Promise.<{items, count}>}
    */
   async getList({
-                  filter = {}, sort = {}, limit = 10, skip = 0, view = true, fields = {'*': 1},
+                  filter = {}, sort = {}, limit = 10, skip = 0,
+                  view = true, fields = {'*': 1},
                   session, isDeleted = true
                 }) {
     if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
@@ -192,21 +200,15 @@ class Model {
       query.limit(parseInt(limit) || 10);
     }
 
-    let list = await query.toArray();
+    let result = {
+      items: await query.toArray()
+    };
 
     if (view) {
-      list = await this.viewList(list, {fields, session, view});
+      result = await this.viewList(result, {filter, fields, session, view});
     }
 
-    if (fields && fields['items'] && fields['count']) {
-      const count = await this.native.count(filter);
-      return {
-        items: list,
-        count: count
-      };
-    }
-
-    return list;
+    return result;
   }
 
   async getListChanges({key, ...params}) {
@@ -217,7 +219,7 @@ class Model {
       change: null,
       items: null
     };
-    let items = Array.isArray(current) ? current : current.items;
+    let items = current.items;
     if ('count' in current) {
       result.count = current.count;
     }
@@ -580,6 +582,12 @@ class Model {
       ? {type: true, schema: true, fields: true}
       : options.view || {};
 
+    if (options.from === 'viewList'){
+      object = await this.viewListAppend(object, options);
+    } else {
+      object = await this.viewAppend(object, options);
+    }
+
     if (_view.type || _view.schema) {
       object = await this.reconvertTypes(object);
     }
@@ -606,26 +614,69 @@ class Model {
    * @returns {Promise<*>}
    */
   async viewList(list, options = {}, limit = 0) {
-    let result = [];
-    const source = list.items ? list.items : list;
-    const f = options.fields && options.fields.items ? options.fields.items : options.fields;
-    for (const item of source) {
-      result.push(await this.view(item, Object.assign({}, options, {fields: f})));
+    options.fields = (typeof options.fields === 'string') ? queryUtils.parseFields(options.fields) : options.fields;
+    if (!options.fields.items){
+      options.fields.items = options.fields;
     }
-    if (limit) {
-      result = result.slice(0, limit);
-    }
-    if (Array.isArray(list.items)) {
-      return Object.assign(list, {items: result});
-    } else {
-      return result;
-    }
+    options.from = 'viewList';
+    options.schema = 'viewList';
+    return await this.view(list, options);
   }
 
+  /**
+   * Дополнение объекта виртуальными свойствами
+   * Свойства желательно описать в схеме view
+   * Метод так же выхывается для каждого объекта при выборке списка, но есть метод viewListAppend для
+   * опитмального дополнения списку объектов. Чтобы повторно не делать дополнения, нужно свойрить options.from
+   * @param object
+   * @param options
+   * @returns {Promise<*>}
+   */
+  async viewAppend(object, options = {}) {
+    // @example
+    if (options.from !== 'viewList') {
+      // Только при выборке одного объекта
+    }
+    return object;
+  }
+
+  /**
+   * Дополнение при выборке списка объектов.
+   * Нужно учесть, что метод для каждого объекта юудет вызван viewAppend и в нём надо проверить options.from !== 'viewList'
+   * чтобы не делать повторные выборки, если они были сделаны
+   * @param list
+   * @param options
+   * @returns {Promise<void>}
+   */
+  async viewListAppend(list, options = {}) {
+    if (options.fields['count']) {
+      list.count = await this.getCount(options);
+    }
+    let itemOptions = {...options, fields: options.fields.items};
+    for (let i=0; i< list.items.length; i++){
+      list.items[i] = await this.viewAppend(list.items[i], itemOptions);
+    }
+    return list;
+  }
+
+  /**
+   * Обратный вызов при изменении объекта
+   * @param prev
+   * @param object
+   * @param diff
+   * @returns {Promise<void>}
+   */
   async onChange({prev, object, diff}) {
 
   }
 
+  /**
+   * Обратный вызов при создании объекта
+   * @param object
+   * @param diff
+   * @param session
+   * @returns {Promise<void>}
+   */
   async onCreate({object, diff, session}) {
 
   }

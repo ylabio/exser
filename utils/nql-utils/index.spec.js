@@ -26,8 +26,6 @@ describe('Test NQL', () => {
     };
     const nql = nqlUtils.buildWhere({bucket: 'main', filter});
 
-    console.log(nql);
-
-    expect(nql).toEqual('(`prop1` = 10 AND `prop11` = "string10" AND `prop2` = 20 AND `prop22` = "string20")');
+    expect(nql).toEqual('(`prop1` = 10 AND `prop11` = "string10" AND `prop2` = 20 AND `prop22` = "string20" AND `prop4` != 100 AND `prop5` IN (10,20,"string",TRUE) AND `prop6` > 5 AND `prop7` < 5)');
   });
 });
