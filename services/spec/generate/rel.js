@@ -1,7 +1,7 @@
 /**
  *
  * @param spec
- * @param params Object {description='', _type, inverse, copy, search, properties = {}, default, required = [], example={}}
+ * @param params Object {description='', _type, inverse, copy, search, properties = {}, default, required = [], example={}, by=['_id', '_key']}
  * @returns {{type: string, description: *, properties: *, rel: *, errors: {rel: string}, additionalProperties: boolean}}
  */
 module.exports = (spec, params) => {
@@ -33,6 +33,10 @@ module.exports = (spec, params) => {
   if (params.type) {
     params._type = params.type;
     delete params.type;
+  }
+
+  if (!params.by) {
+    params.by = ['_id', '_key'];
   }
 
   if (!params._type || Array.isArray(params._type)) {

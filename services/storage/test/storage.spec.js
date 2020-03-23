@@ -88,6 +88,33 @@ describe('Storage', () => {
     });
   });
 
+  test('Установка parent по _key', async () => {
+    const root = await s.objects.createOne({
+      body: {
+        _key: 'root',
+        name: 'Root',
+      },
+    });
+    const child1 = await s.objects.createOne({body: {_key: '1',name: 'Child 1', parent: {_key: 'root'}}});
+    const child2 = await s.objects.createOne({body: {_key: '2',name: 'Child 2', parent: {_key: '1'}}});
+    const child3 = await s.objects.createOne({body: {_key: '3',name: 'Child 3', parent: {_key: '2'}}});
+
+    expect(child1).toMatchObject({
+      name: child1.name,
+      parent: {_id: root._id, _type: root._type}
+    });
+
+    expect(child2).toMatchObject({
+      name: child2.name,
+      parent: {_id: child1._id, _type: child1._type}
+    });
+
+    expect(child3).toMatchObject({
+      name: child3.name,
+      parent: {_id: child2._id, _type: child2._type}
+    });
+  });
+
   test('Установка parent начиная с листового', async () => {
     const root = await s.objects.createOne({
       body: {

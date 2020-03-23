@@ -60,30 +60,41 @@ class Spec {
             if ((!types || (Array.isArray(types) && !types.length)) && data._type) {
               types = [data._type];
             }
-            if ((data._id || data._key) && context.collection) {
-              if (types) {
-                if (!Array.isArray(types)) {
-                  types = [types];
-                }
-                // Выборка из коллекции
-                let cond = data._id ? {_id: new ObjectID(data._id)} : {_key: data._key};
-                for (let type of types) {
-                  const link = await self.storage.get(type).native.findOne(cond);
-                  if (link) {
-                    const rel = await context.collection.onLinkPrepare({
-                      path: dataPath.substring(1).replace(/\[[0-9]+\]/, ''),
-                      link
-                    });
-                    data._type = type;
-                    if (rel) {
-                      data = Object.assign(data, rel);
-                    }
-                    return true;
+            const linkPath = dataPath.substring(1).replace(/\[[0-9]+\]/, '');
+            if (context.collection) {
+              const linkMeta = context.collection._links && context.collection._links[linkPath];
+              if (linkMeta) {
+                let cond = {};
+                for (const field of linkMeta.by) {
+                  if (data[field]) {
+                    cond[field] = field === '_id' ? new ObjectID(data[field]) : data[field];
                   }
                 }
+                if (Object.keys(cond).length) {
+                  if (types) {
+                    if (!Array.isArray(types)) {
+                      types = [types];
+                    }
+                    // Выборка из коллекции
+                    for (let type of types) {
+                      const link = await self.storage.get(type).native.findOne(cond);
+                      if (link) {
+                        const rel = await context.collection.onLinkPrepare({
+                          path: linkPath,
+                          link
+                        });
+                        data._type = type;
+                        if (rel) {
+                          data = Object.assign(data, rel);
+                        }
+                        return true;
+                      }
+                    }
+                  }
+                  //console.log(data);
+                  return false;
+                }
               }
-              //console.log(data);
-              return false;
             }
             return true;
           } catch (e) {
@@ -99,13 +110,15 @@ class Spec {
         properties: {
           // Условия на связываемый объект
           type: {type: ['string', 'array']},
-          //_type: {type: ['string', 'array']},
+          _type: {type: ['string', 'array']},
           // Сведения о связи
           copy: {type: 'string'},
           search: {type: 'string'},
           inverse: {type: 'string'},
-          tree: {type: 'string'}
-        }
+          tree: {type: 'string'},
+          // По каким полям искать отношение, если они переданы
+          by: {type: 'array'}
+        },
       }
     });
 
