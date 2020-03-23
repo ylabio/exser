@@ -71,7 +71,18 @@ class Model {
           _id: {type: 'string', description: 'Идентификатор ObjectId'},
           _type: {type: 'string', description: 'Тип объекта'},
           _key: {type: 'string', description: 'Дополнительный необязательный идентфиикатор'},
-          order: {type: 'number', description: 'Порядковый номер'},
+          order: {
+            anyOf: [
+              {
+                type: 'string',
+                enum: ['min', '+1', '-1', 'max'],
+                description: 'Относительная установка'
+              },
+              {type: 'integer', minimum: 1},
+            ],
+            description: 'Порядковый номер',
+            default: 'max'
+          },
           dateCreate: {
             type: 'string',
             format: 'date-time',
@@ -83,7 +94,16 @@ class Model {
             description: 'Дата и время обновления в секундах'
           },
           isDeleted: {type: 'boolean', description: 'Признак, удалён ли объект', default: false},
-          isNew: {type: 'boolean', description: 'Признак, новый ли объект', default: true}
+          isNew: {type: 'boolean', description: 'Признак, новый ли объект', default: true},
+          proto: this.spec.generate('rel', {
+            description: 'Прототип',
+            type: [],
+            properties: {
+              //isLink: {type: 'boolean', description: 'Связь по ссылке или экземпляр?', default: false}
+            },
+            default: {},
+            tree: 'proto'
+          }),
         },
         additionalProperties: false
       }
@@ -100,7 +120,7 @@ class Model {
     schemes.create = this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Создание`,
         properties: {
-          $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew'],
+          $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew', 'author'],
         },
       });
     // Схема редактирования
@@ -108,7 +128,7 @@ class Model {
           title: `${this._define.model.title}. Изменение`,
           properties: {
             $unset: [
-              '_id', '_type', 'dateCreate', 'dateUpdate', 'isNew'
+              '_id', '_type', 'dateCreate', 'dateUpdate', 'isNew', 'author'
             ]
           },
           $set: {
@@ -149,6 +169,17 @@ class Model {
           required: ['isDeleted']
         },
       });
+    // Схема для выборки свойств прототипа для создания нового объекта
+    schemes.proto = this.spec.extend(this._define.model, {
+      title: `${this._define.model.title}. Прототипирование`,
+      properties: {
+        $unset: ['_id', '_key', 'dateCreate', 'dateUpdate', 'isNew', 'isDeleted', 'proto']
+      },
+      $set: {
+        required: []
+      },
+      $mode: 'view'
+    });
     return schemes;
   }
 
@@ -219,7 +250,7 @@ class Model {
       change: null,
       items: null
     };
-    let items = current.items;
+    let items = Array.isArray(current) ? current : current.items;
     if ('count' in current) {
       result.count = current.count;
     }
@@ -273,7 +304,76 @@ class Model {
    */
   async createOne({body, view = true, validate, prepare, fields = {'*': 1}, session, schema = 'create'}) {
     try {
-      let object = objectUtils.clone(body);
+      let object;
+
+      // Прототипирование
+      const protoProps = {};
+      if (body.proto && body.proto._id && body.proto._type) {
+        const protoStore = this.storage.get(body.proto._type);
+        const proto = await protoStore.getOne({
+          id: body.proto._id,
+          schema: 'proto',
+          session: this.storage.getRootSession(),
+          fields: '*',
+          throwNotFound: false
+        });
+        // Свойства, которые тоже надо прототипировать и привязывать к новому объекту
+
+        const linkNames = Object.keys(protoStore._links);
+        for (const name of linkNames) {
+          //console.log(protoStore._links[name].own, proto[name]);
+          if (protoStore._links[name].own && proto[name]) {
+            protoProps[name] = [];
+            if (protoStore._links[name].size === 'M') {
+              for (const item of proto[name]) {
+                protoProps[name].push({
+                    proto: {
+                      _id: item._id,
+                      _type: item._type,
+                    }
+                  }
+                );
+              }
+            } else {
+              if (proto[name] && proto[name]._id) {
+                protoProps[name] = {
+                  proto: {
+                    _id: proto[name]._id,
+                    _type: proto[name]._type,
+                  }
+                };
+              }
+            }
+            // delete proto[name]._id;
+            // delete proto[name]._type;
+            if (protoStore._links[name].inverse) {
+              if (!protoProps[name].$set) {
+                protoProps[name].$set = {};
+              }
+              protoProps[name].$set[protoStore._links[name].inverse] = {};
+            }
+          }
+        }
+
+        if (proto) {
+          object = objectUtils.merge(proto, body);
+          if (!('order' in body) && ('order' in proto)) {
+            object.order = proto.order + 1;
+          }
+        } else {
+          throw new errors.Validation({
+            issues: [
+              {
+                path: 'proto',
+                rule: 'exist',
+                message: 'Not fount prototype object'
+              }
+            ]
+          });
+        }
+      } else {
+        object = objectUtils.clone(body);
+      }
 
       // Валидация с возможностью переопредления
       const validateDefault = (object) => this.validate(schema, object, session);
@@ -293,26 +393,60 @@ class Model {
       object = await this.convertTypes(object);
 
       // Order
-      // Если неопредлен, то найти максимальный в базе
-      if (!('order' in object)) {
-        const orderFilter = this.orderScope(object);
-        if (!object.isNew) {
-          orderFilter.isNew = false;
+      // Если неопределен, то найти максимальный в базе
+      if (typeof object.order === 'undefined'){
+        object.order = 'max'
+      }
+      if (typeof object.order === 'string') {
+        const sort = object.order === 'max' || object.order === '+1' ? {order: -1} : {order: 1};
+        const orderFilter = this.orderScope(object/*, {isNew: object.isNew}*/);
+        // Новые объекты должны оставться в конце упорядочивания
+        // if (!object.isNew) {
+        //   orderFilter.isNew = false;
+        // }
+        const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+        if (sort.order === -1) {
+          object.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
+        } else {
+          object.order = maxOrder.length ? maxOrder[0].order : 1;
         }
-        const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
-        object.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
-        if (!object.isNew) {
-          await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
-            $inc: {order: +1},
-            $set: {dateUpdate: moment().toDate()}
-          });
-        }
+        //if (!object.isNew) {
+        await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
+          $inc: {order: +1},
+          $set: {dateUpdate: moment().toDate()}
+        });
+        //}
       } else {
         // смещение делается для записей больше или равных order
         await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
           $inc: {order: +1},
           $set: {dateUpdate: moment().toDate()}
         });
+      }
+
+      // Добавление прототпированных свойств
+      const protoPropsNames = Object.keys(protoProps);
+      for (const protoPropName of protoPropsNames) {
+        const protoProp = protoProps[protoPropName];
+        if (Array.isArray(protoProp)) {
+          for (let i = 0; i < protoProp.length; i++) {
+            const prop = await this.storage.get(protoProp[i].proto._type).createOne({
+              body: protoProp[i],
+              session: this.storage.getRootSession(),
+              view: false
+            });
+            object[protoPropName][i]._id = prop._id.toString();
+            object[protoPropName][i]._type = prop._type;
+          }
+        } else {
+          const prop = await this.storage.get(protoProp.proto._type).createOne({
+            body: protoProp,
+            session: this.storage.getRootSession(),
+            view: false
+          });
+          object[protoPropName]._id = prop._id.toString();
+          object[protoPropName]._type = prop._type;
+        }
       }
 
       // запись в базу
@@ -377,6 +511,58 @@ class Model {
       };
       await (prepare ? prepare(prepareDefault, object, prev) : prepareDefault(object, prev));
 
+      const scopeObject = objectUtils.merge(prev, object);
+
+      // Предыдущий order зависит от скоупа измененого объекта (например поменяли родителя и старый order нельзя учитывать)
+      const prevOrder = this.isNewScope(prev, scopeObject) ? Number.MAX_SAFE_INTEGER : prev.order;
+
+      // Корректировка нового order
+      if ('order' in object && prev.order !== object.order) {
+        let needCorrect = true;
+        if (typeof object.order === 'string') {
+          if (object.order === '+1') {
+            object.order = prev.order + 1;
+          } else if (object.order === '-1') {
+            object.order = prev.order - 1;
+          } else {
+            // поиск минимального или максимального order
+            const sort = object.order === 'max' ? {order: -1} : {order: 1};
+            // Новые объекты должны оставться в конце упорядочивания
+            const orderFilter = this.orderScope(scopeObject, {
+              _id: {$ne: prev._id},
+              //isNew: scopeObject.isNew
+            });
+            // if (!object.isNew) {
+            //   orderFilter.isNew = false;
+            // }
+            const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+            if (sort.order === -1) {
+              object.order = maxOrder.length ? maxOrder[0].order : 1;
+            } else {
+              object.order = maxOrder.length ? maxOrder[0].order : 1;
+            }
+            needCorrect = false;
+          }
+        }
+        if (needCorrect) {
+          const orderFilter = this.orderScope(scopeObject, {
+            _id: {$ne: prev._id},
+            //isNew: scopeObject.isNew
+          });
+          // if (!object.isNew) {
+          //   orderFilter.isNew = false;
+          // }
+          // Возможно новое значение выходит за диапазон сущесвтующих и не имеет смысла менять его
+          if (object.order > prevOrder) {
+            const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
+            object.order = Math.min(object.order, maxOrder.length ? maxOrder[0].order + 1 : 1);
+          } else if (object.order < prevOrder) {
+            const minOrder = await this.native.find(orderFilter).sort({order: 1}).limit(1).toArray();
+            object.order = Math.max(object.order, minOrder.length ? minOrder[0].order : 1);
+          }
+        }
+      }
+
       // Конвертация в плоский объект
       let $set = objectUtils.convertForSet(object, true);
 
@@ -385,8 +571,7 @@ class Model {
       if (result.matchedCount) {
         const objectNew = await this.getOne({filter: {_id}, view: false, fields, session});
 
-        // Сдвиг order
-        const prevOrder = this.isNewScope(prev, objectNew) ? Number.MAX_SAFE_INTEGER : prev.order;
+        // Смещение order у других объектов, если меняем у текущего
         if (objectNew.order > prevOrder) {
           // свдиг вверх, чтобы освободить order снизу
           await this.native.updateMany(this.orderScope(objectNew, {
