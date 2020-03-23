@@ -12,7 +12,8 @@ module.exports = (spec, params) => {
     properties: Object.assign({
       _id: {$ref: '#/components/schemas/object-id'},
       _type: {type: 'string', description: 'Тип объекта'},
-      _tree: {type: 'array', description: 'Массив родителей', items: {type: 'object'}}
+      _tree: {type: 'array', description: 'Массив родителей', items: {type: 'object'}},
+      _key: {type: 'string', description: 'Вторичный идентификатор объекта'}
     }, params.properties || {}
     ),
     rel: params,

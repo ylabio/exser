@@ -60,13 +60,13 @@ class Spec {
             if ((!types || (Array.isArray(types) && !types.length)) && data._type) {
               types = [data._type];
             }
-            if (data._id && context.collection) {
+            if ((data._id || data._key) && context.collection) {
               if (types) {
                 if (!Array.isArray(types)) {
                   types = [types];
                 }
                 // Выборка из коллекции
-                let cond = {_id: new ObjectID(data._id)};
+                let cond = data._id ? {_id: new ObjectID(data._id)} : {_key: data._key};
                 for (let type of types) {
                   const link = await self.storage.get(type).native.findOne(cond);
                   if (link) {
@@ -99,7 +99,7 @@ class Spec {
         properties: {
           // Условия на связываемый объект
           type: {type: ['string', 'array']},
-          _type: {type: ['string', 'array']},
+          //_type: {type: ['string', 'array']},
           // Сведения о связи
           copy: {type: 'string'},
           search: {type: 'string'},
