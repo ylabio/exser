@@ -34,7 +34,10 @@ describe('Parse fields parameter', () => {
 
   test('parse with namespaces', () => {
     let fields = queryUtils.parseFields('news:name, user-admin:name.2(object(some:property, _id))');
-    expect(fields).toEqual({"news:name": 1, "user-admin:name.2": {object: {"some:property": 1, _id: 1}}});
+    expect(fields).toEqual({
+      "news:name": 1,
+      "user-admin:name.2": {object: {"some:property": 1, _id: 1}}
+    });
   });
 
   test('parse with spec symbols', () => {
@@ -279,5 +282,186 @@ describe('Formatting sort parameter', () => {
   test('empty desc sort', () => {
     let sort = queryUtils.formattingSort('-');
     expect(sort).toEqual(null);
+  });
+});
+
+describe('Parse condition flex', () => {
+  test('search[prop]=value', () => {
+    let cond = queryUtils.parseConditionFlex('value');
+    expect(cond).toEqual({$eq: 'value'});
+  });
+  test('search[prop]=*value', () => {
+    let cond = queryUtils.parseConditionFlex('*value');
+    expect(cond).toEqual({$regex: /value/i});
+  });
+  test('search[prop]=^value', () => {
+    let cond = queryUtils.parseConditionFlex('^value');
+    expect(cond).toEqual({$regex: /^value/i});
+  });
+  // test('search[prop]=~value', () => {
+  //   let cond = queryUtils.  parseConditionFlex('~value');
+  //   expect(cond).toEqual('value');
+  // });
+
+  // test('search[prop]=/value/', () => {
+  //   let cond = queryUtils.  parseConditionFlex('/value/');
+  //   expect(cond).toEqual(/value/);
+  // });
+  test('search[prop]=!value', () => {
+    let cond = queryUtils.parseConditionFlex('!value');
+    expect(cond).toEqual({$ne: 'value'});
+  });
+  test('search[prop]="value-with!~^*<>;|', () => {
+    let cond = queryUtils.parseConditionFlex('"value-with!~^*<>;|');
+    expect(cond).toEqual('value-with!~^*<>;|');
+  });
+  test('search[prop]=>value', () => {
+    let cond = queryUtils.parseConditionFlex('>10');
+    expect(cond).toEqual({$gt: 10});
+  });
+  test('search[prop]=<value', () => {
+    let cond = queryUtils.parseConditionFlex('<10');
+    expect(cond).toEqual({$lt: 10});
+  });
+  test('search[prop]=>>value', () => {
+    let cond = queryUtils.parseConditionFlex('>>10');
+    expect(cond).toEqual({$gte: 10});
+  });
+  test('search[prop]=<<value', () => {
+    let cond = queryUtils.parseConditionFlex('<<10');
+    expect(cond).toEqual({$lte: 10});
+  });
+
+  test('search[prop]=min;max', () => {
+    let cond = queryUtils.parseConditionFlex('10;20');
+    expect(cond).toEqual({$gte: 10, $lte: 20});
+  });
+  test('search[prop]=min~max', () => {
+    let cond = queryUtils.parseConditionFlex('10~20');
+    expect(cond).toEqual({$gt: 10, $lt: 20});
+  });
+  test('search[prop]=!min;max', () => {
+    let cond = queryUtils.parseConditionFlex('!10;20');
+    expect(cond).toEqual({$lt: 10, $gt: 20});
+  });
+  test('search[prop]=!min~max', () => {
+    let cond = queryUtils.parseConditionFlex('!10~20');
+    expect(cond).toEqual({$lte: 10, $gte: 20});
+  });
+  test('search[prop]=null', () => {
+    let cond = queryUtils.parseConditionFlex('null');
+    expect(cond).toEqual({$exists: false});
+  });
+  test('search[prop]=exp1|exp2', () => {
+    let cond = queryUtils.parseConditionFlex('exp1|exp2');
+    expect(cond).toEqual({$or: [{$eq: 'exp1'}, {$eq: 'exp2'}]});
+  });
+  test('search[prop]=>exp1|!exp2', () => {
+    let cond = queryUtils.parseConditionFlex('>exp1|!exp2');
+    expect(cond).toEqual({$or: [{$gt: 'exp1'}, {$ne: 'exp2'}]});
+  });
+
+  test('search[prop]=exp1&exp2', () => {
+    let cond = queryUtils.parseConditionFlex('exp1&exp2');
+    expect(cond).toEqual({$and: [{$eq: 'exp1'}, {$eq: 'exp2'}]});
+  });
+
+  test('search[prop]=!exp1&!exp2', () => {
+    let cond = queryUtils.parseConditionFlex('!exp1&!exp2');
+    expect(cond).toEqual({$and: [{$ne: 'exp1'}, {$ne: 'exp2'}]});
+  });
+
+  test('search[prop]=^exp1&!exp2', () => {
+    let cond = queryUtils.parseConditionFlex('^exp1&!exp2');
+    expect(cond).toEqual({$and: [{$regex: /^exp1/i}, {$ne: 'exp2'}]});
+  });
+});
+
+
+describe('Make filter', () => {
+
+  test('Simple field', () => {
+    let search = queryUtils.makeFilter({'series': 'single', 'origin': '10'},
+      {
+        series: {},
+        origin: {field: 'correct'}
+      }
+    );
+    expect(search).toEqual({
+      $and: [
+        {series: 'single'},
+        {correct: 10}
+      ]
+    });
+  });
+
+  test('Value and function', () => {
+    let search = queryUtils.makeFilter({f2: '10'},
+      {
+        f1: {value: 10, cond: 'eq'},
+        f2: (value, key) => ({[key]: queryUtils.type(value)})
+      }
+    );
+    expect(search).toEqual({
+      $and: [
+        {f1: 10},
+        {f2: 10}
+      ]
+    });
+  });
+
+  test('Multiple fields', () => {
+    let search = queryUtils.makeFilter({f1: '20', f2: '10'},
+      {
+        f0: {fields: ['a0', 'b0'], cond: 'eq', join: '$not', default: 10},
+        f1: {fields: ['a1', 'b1'], cond: 'eq', join: '$and'},
+        f2: {fields: ['a2', 'b2'], cond: 'eq', join: '$or'},
+        f3: {fields: ['a3', 'b3'], cond: 'eq', default: 30}
+      }
+    );
+    expect(search).toEqual({
+      $and: [
+        {$not: [{a0: 10}, {b0: 10}]},
+        {$and: [{a1: 20}, {b1: 20}]},
+        {$or: [{a2: 10}, {b2: 10}]},
+        {$or: [{a3: 30}, {b3: 30}]}
+      ]
+    });
+  });
+
+  test('Flex fields', () => {
+    let search = queryUtils.makeFilter({f1: '!10', f2: '>>20', f3: '"!>10', f4: '1~2|4;8'},
+      {
+        f1: {cond: 'flex'},
+        f2: {},
+        f3: {cond: 'flex'},
+        f4: {},
+        f5: {cond: 'flex'},
+        f6: {},
+      }
+    );
+    expect(search).toEqual({
+      $and: [
+        {f1: {$ne: 10}},
+        {f2: {$gte: 20}},
+        {f3: '!>10'},
+        {f4: {$or: [{$gt: 1, $lt: 2}, {$gte: 4, $lte: 8}]}},
+      ]
+    });
+  });
+
+  test('Fulltext search', () => {
+    let search = queryUtils.makeFilter({f1: 'search1', f2: 'search2'},
+      {
+        f1: {cond: 'fulltext'},
+        f2: {cond: 'fulltext', lang: 'en'},
+      }
+    );
+    expect(search).toEqual({
+      $and: [
+        {$text: {$search: 'search1', "$language": "ru"}},
+        {$text: {$search: 'search2', "$language": "en"}},
+      ]
+    });
   });
 });
