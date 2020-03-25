@@ -433,7 +433,6 @@ const queryUtils = {
   },
 
 
-
   /**
    * Создание условия фильра в монге
    * @param searchFields {Object} Поля со значениями для условия. Значения в строковом типе
@@ -455,7 +454,7 @@ const queryUtils = {
    *
    * @returns {*}
    */
-  makeFilter: (searchFields, filterMap = {}) => {
+  makeFilter: (searchFields = {}, filterMap = {}) => {
     let result = [];
     if (!Array.isArray(searchFields) && searchFields === Object(searchFields)) {
       const keys = Object.keys(filterMap);
@@ -502,7 +501,7 @@ const queryUtils = {
             const c = queryUtils.makeFilterField(filed, value, filterMap[key]);
             if (c) {
               // Сокращение условия равенства
-              if (typeof c[filed] === 'object' && ('$eq' in c[filed]) && Object.keys(c[filed]).length === 1){
+              if (typeof c[filed] === 'object' && ('$eq' in c[filed]) && Object.keys(c[filed]).length === 1) {
                 fieldCondList.push({[filed]: c[filed].$eq});
               } else {
                 fieldCondList.push(c);
@@ -594,14 +593,14 @@ const queryUtils = {
         return {
           $text: {
             $search: value,
-            $language: options.lang || 'ru',
+            //$language: options.lang || 'ru',
           }
         };
       case 'flex':
         // Формирование условия по спецсимволам в значении
         return {[field]: queryUtils.parseConditionFlex(value, options.types, options.trim)};
       default:
-        throw new Error('Unsupported cond = "'+options.cond+'"');
+        throw new Error('Unsupported cond = "' + options.cond + '"');
     }
   },
 
