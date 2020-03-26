@@ -245,30 +245,34 @@ class RestAPI {
         try {
           res.statusCode = 0; // Для возможности опредлить статус в контроллере
           let result = await callback(req, res, next);
-          if (!res.statusCode) {
-            res.status(200);
-          }
-          if (result && result.response) {
-            result = result.response;
-          } else if (Array.isArray(result)) {
-            result = {result: {items: result}};
-          } else {
-            result = {result};
-          }
 
-          if (atResponse){
-            atResponse(result, req, res, next);
-          }
-
-          res.json(result);
-          if (this.config.validateResponse) {
-            this.validateResponse({
-              req,
-              status: res.statusCode,
-              headers: res.getHeaders(),
-              body: result,
-              schema: def
-            });
+          if (typeof result === "undefined") {
+            if (!res.statusCode) {
+              res.status(200);
+            }
+            
+            if (result.response) {
+              result = result.response;
+            } else if (Array.isArray(result)) {
+              result = {result: {items: result}};
+            } else {
+              result = {result};
+            }
+  
+            if (atResponse) {
+              atResponse(result, req, res, next);
+            }
+  
+            res.json(result);
+            if (this.config.validateResponse) {
+              this.validateResponse({
+                req,
+                status: res.statusCode,
+                headers: res.getHeaders(),
+                body: result,
+                schema: def
+              });
+            }
           }
         } catch (e) {
           next(e);
