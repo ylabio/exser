@@ -246,7 +246,7 @@ class RestAPI {
           res.statusCode = 0; // Для возможности опредлить статус в контроллере
           let result = await callback(req, res, next);
 
-          if (typeof result === "undefined") {
+          if (typeof result !== "undefined") {
             if (!res.statusCode) {
               res.status(200);
             }
