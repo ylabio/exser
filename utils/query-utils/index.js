@@ -598,7 +598,7 @@ const queryUtils = {
         };
       case 'flex':
         // Формирование условия по спецсимволам в значении
-        return {[field]: queryUtils.parseConditionFlex(value, options.types, options.trim)};
+        return queryUtils.parseConditionFlex(value, field, options.types, options.trim);
       default:
         throw new Error('Unsupported cond = "' + options.cond + '"');
     }
@@ -607,12 +607,13 @@ const queryUtils = {
   /**
    * Парсер условия сравнения по http://query.rest
    * @param condition {String}
+   * @param field {String}
    * @param types (String|Array} Типы значения
    */
-  parseConditionFlex: (condition, types, trim) => {
+  parseConditionFlex: (condition, field, types, trim) => {
     const type = (value) => queryUtils.type(value, types, trim);
     if (condition.substr(0, 1) === '"') {
-      return {$eq: type(condition.substr(1))};
+      return {[field]: {$eq: type(condition.substr(1))}};
     } else {
       let itemsCond = '$and';
       let items = condition.split('|');
@@ -621,7 +622,7 @@ const queryUtils = {
         itemsCond = '$or';
       } else {
         // AND
-        items = condition.split('&');
+        items = condition.split('+');
         itemsCond = '$and';
       }
 
@@ -686,9 +687,9 @@ const queryUtils = {
         items[i] = f(items[i]);
       }
       if (items.length > 1) {
-        return {[itemsCond]: items};
+        return {[itemsCond]: items.map(item => ({[field]: item}))};
       } else {
-        return items[0];
+        return {[field]: items[0]};
       }
     }
   },

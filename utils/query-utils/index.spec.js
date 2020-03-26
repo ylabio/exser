@@ -287,16 +287,16 @@ describe('Formatting sort parameter', () => {
 
 describe('Parse condition flex', () => {
   test('search[prop]=value', () => {
-    let cond = queryUtils.parseConditionFlex('value');
-    expect(cond).toEqual({$eq: 'value'});
+    let cond = queryUtils.parseConditionFlex('value', 'field');
+    expect(cond).toEqual({field: {$eq: 'value'}});
   });
   test('search[prop]=*value', () => {
-    let cond = queryUtils.parseConditionFlex('*value');
-    expect(cond).toEqual({$regex: /value/i});
+    let cond = queryUtils.parseConditionFlex('*value', 'field');
+    expect(cond).toEqual({field: {$regex: /value/i}});
   });
   test('search[prop]=^value', () => {
-    let cond = queryUtils.parseConditionFlex('^value');
-    expect(cond).toEqual({$regex: /^value/i});
+    let cond = queryUtils.parseConditionFlex('^value', 'field');
+    expect(cond).toEqual({field: {$regex: /^value/i}});
   });
   // test('search[prop]=~value', () => {
   //   let cond = queryUtils.  parseConditionFlex('~value');
@@ -308,72 +308,72 @@ describe('Parse condition flex', () => {
   //   expect(cond).toEqual(/value/);
   // });
   test('search[prop]=!value', () => {
-    let cond = queryUtils.parseConditionFlex('!value');
-    expect(cond).toEqual({$ne: 'value'});
+    let cond = queryUtils.parseConditionFlex('!value', 'field');
+    expect(cond).toEqual({field: {$ne: 'value'}});
   });
   test('search[prop]="value-with!~^*<>;|', () => {
-    let cond = queryUtils.parseConditionFlex('"value-with!~^*<>;|');
-    expect(cond).toEqual('value-with!~^*<>;|');
+    let cond = queryUtils.parseConditionFlex('"value-with!~^*<>;|', 'field');
+    expect(cond).toEqual({field: {$eq: 'value-with!~^*<>;|'}});
   });
   test('search[prop]=>value', () => {
-    let cond = queryUtils.parseConditionFlex('>10');
-    expect(cond).toEqual({$gt: 10});
+    let cond = queryUtils.parseConditionFlex('>10', 'field');
+    expect(cond).toEqual({field: {$gt: 10}});
   });
   test('search[prop]=<value', () => {
-    let cond = queryUtils.parseConditionFlex('<10');
-    expect(cond).toEqual({$lt: 10});
+    let cond = queryUtils.parseConditionFlex('<10', 'field');
+    expect(cond).toEqual({field: {$lt: 10}});
   });
   test('search[prop]=>>value', () => {
-    let cond = queryUtils.parseConditionFlex('>>10');
-    expect(cond).toEqual({$gte: 10});
+    let cond = queryUtils.parseConditionFlex('>>10', 'field');
+    expect(cond).toEqual({field: {$gte: 10}});
   });
   test('search[prop]=<<value', () => {
-    let cond = queryUtils.parseConditionFlex('<<10');
-    expect(cond).toEqual({$lte: 10});
+    let cond = queryUtils.parseConditionFlex('<<10', 'field');
+    expect(cond).toEqual({field: {$lte: 10}});
   });
 
   test('search[prop]=min;max', () => {
-    let cond = queryUtils.parseConditionFlex('10;20');
-    expect(cond).toEqual({$gte: 10, $lte: 20});
+    let cond = queryUtils.parseConditionFlex('10;20', 'field');
+    expect(cond).toEqual({field: {$gte: 10, $lte: 20}});
   });
   test('search[prop]=min~max', () => {
-    let cond = queryUtils.parseConditionFlex('10~20');
-    expect(cond).toEqual({$gt: 10, $lt: 20});
+    let cond = queryUtils.parseConditionFlex('10~20', 'field');
+    expect(cond).toEqual({field: {$gt: 10, $lt: 20}});
   });
   test('search[prop]=!min;max', () => {
-    let cond = queryUtils.parseConditionFlex('!10;20');
-    expect(cond).toEqual({$lt: 10, $gt: 20});
+    let cond = queryUtils.parseConditionFlex('!10;20', 'field');
+    expect(cond).toEqual({field: {$lt: 10, $gt: 20}});
   });
   test('search[prop]=!min~max', () => {
-    let cond = queryUtils.parseConditionFlex('!10~20');
-    expect(cond).toEqual({$lte: 10, $gte: 20});
+    let cond = queryUtils.parseConditionFlex('!10~20', 'field');
+    expect(cond).toEqual({field: {$lte: 10, $gte: 20}});
   });
   test('search[prop]=null', () => {
-    let cond = queryUtils.parseConditionFlex('null');
-    expect(cond).toEqual({$exists: false});
+    let cond = queryUtils.parseConditionFlex('null', 'field');
+    expect(cond).toEqual({field: {$exists: false}});
   });
   test('search[prop]=exp1|exp2', () => {
-    let cond = queryUtils.parseConditionFlex('exp1|exp2');
-    expect(cond).toEqual({$or: [{$eq: 'exp1'}, {$eq: 'exp2'}]});
+    let cond = queryUtils.parseConditionFlex('exp1|exp2', 'field');
+    expect(cond).toEqual({$or: [{field: {$eq: 'exp1'}}, {field: {$eq: 'exp2'}}]});
   });
   test('search[prop]=>exp1|!exp2', () => {
-    let cond = queryUtils.parseConditionFlex('>exp1|!exp2');
-    expect(cond).toEqual({$or: [{$gt: 'exp1'}, {$ne: 'exp2'}]});
+    let cond = queryUtils.parseConditionFlex('>exp1|!exp2', 'field');
+    expect(cond).toEqual({$or: [{field: {$gt: 'exp1'}}, {field: {$ne: 'exp2'}}]});
   });
 
   test('search[prop]=exp1&exp2', () => {
-    let cond = queryUtils.parseConditionFlex('exp1&exp2');
-    expect(cond).toEqual({$and: [{$eq: 'exp1'}, {$eq: 'exp2'}]});
+    let cond = queryUtils.parseConditionFlex('exp1+exp2', 'field');
+    expect(cond).toEqual({$and: [{field: {$eq: 'exp1'}}, {field: {$eq: 'exp2'}}]});
   });
 
   test('search[prop]=!exp1&!exp2', () => {
-    let cond = queryUtils.parseConditionFlex('!exp1&!exp2');
-    expect(cond).toEqual({$and: [{$ne: 'exp1'}, {$ne: 'exp2'}]});
+    let cond = queryUtils.parseConditionFlex('!exp1+!exp2', 'field');
+    expect(cond).toEqual({$and: [{field: {$ne: 'exp1'}}, {field: {$ne: 'exp2'}}]});
   });
 
   test('search[prop]=^exp1&!exp2', () => {
-    let cond = queryUtils.parseConditionFlex('^exp1&!exp2');
-    expect(cond).toEqual({$and: [{$regex: /^exp1/i}, {$ne: 'exp2'}]});
+    let cond = queryUtils.parseConditionFlex('^exp1+!exp2', 'field');
+    expect(cond).toEqual({$and: [{field: {$regex: /^exp1/i}}, {field: {$ne: 'exp2'}}]});
   });
 });
 
@@ -445,7 +445,7 @@ describe('Make filter', () => {
         {f1: {$ne: 10}},
         {f2: {$gte: 20}},
         {f3: '!>10'},
-        {f4: {$or: [{$gt: 1, $lt: 2}, {$gte: 4, $lte: 8}]}},
+        {$or: [{f4: {$gt: 1, $lt: 2}}, {f4: {$gte: 4, $lte: 8}}]},
       ]
     });
   });
@@ -459,8 +459,8 @@ describe('Make filter', () => {
     );
     expect(search).toEqual({
       $and: [
-        {$text: {$search: 'search1', "$language": "ru"}},
-        {$text: {$search: 'search2', "$language": "en"}},
+        {$text: {$search: 'search1'}},
+        {$text: {$search: 'search2'}},
       ]
     });
   });
