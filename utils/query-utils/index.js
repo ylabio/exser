@@ -544,8 +544,19 @@ const queryUtils = {
         return {[field]: {$gte: type(value)}};
       case 'in':
         // Равенство одному из значению
-        splits = value.split('|');
+        splits = value.split(/[|,]/);
         return {[field]: {$in: splits.map(v => type(v))}};
+      case 'nin':
+        // Неравенство всем значениям
+        splits = value.split(/[|,+]/);
+        return {[field]: {$nin: splits.map(v => type(v))}};
+      case 'all':
+        // Массив содержит все перечисленные значения
+        splits = value.split(/[|,+]/);
+        return {[field]: {$all: splits.map(v => type(v))}};
+      case 'size':
+        // Размер массива
+        return {[field]: {$size: type(value, 'number')}};
       case 'range':
         // Попадание в диапазон
         splits = value.split(/[;~]/);
