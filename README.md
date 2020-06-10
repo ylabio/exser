@@ -94,4 +94,8 @@ const Services = require('./services');
 })();
 ```
 
+## Заготовка под новый проект
+
+https://github.com/ylabio/exser-skeleton
+
 
