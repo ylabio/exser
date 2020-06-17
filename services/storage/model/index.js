@@ -199,7 +199,11 @@ class Model {
       throw new errors.NotFound({}, 'Not found');
     }
     if (result && view) {
+      const isDeleted = result.isDeleted;
       result = await this.view(result, {fields: pFields, session, view});
+      if (isDeleted){
+        result.isDeleted = true;
+      }
     }
     return result;
   }

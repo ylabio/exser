@@ -257,7 +257,8 @@ class Storage {
         return await this.getModelService(rel._type).getOne({
           filter: {_id: new ObjectID(rel._id)},
           fields,
-          session
+          session,
+          throwNotFound: false
         });
       }
     } catch (e) {

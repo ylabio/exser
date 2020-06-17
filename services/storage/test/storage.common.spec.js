@@ -214,6 +214,39 @@ describe('Storage.common', () => {
     });
   });
 
+  test('Установка удаленного parent', async () => {
+    const root = await s.objects.createOne({
+      body: {
+        name: 'Root',
+      },
+    });
+    const child = await s.objects.createOne({
+      body: {
+        name: 'Child 1',
+      }
+    });
+    // Удаление объектов
+    await s.objects.deleteOne({id: root._id});
+    await s.objects.deleteOne({id: child._id});
+
+    // Установка удаленного родителя
+    const child1Upd = await s.objects.updateOne({
+      id: child._id,
+      body: {
+        name: 'Deleted child to deleted parent',
+        parent: {_id: root._id}
+      },
+      fields: '_id, _type, name, parent(_id, _type, name)'
+    });
+
+    expect(child1Upd).toMatchObject({
+      _id: child1Upd._id,
+      _type: child1Upd._type,
+      name: child1Upd.name,
+      parent: {_id: root._id, _type: root._type, name: root.name, isDeleted: true}
+    });
+  });
+
   test('Установка children', async () => {
     // Подготовка объектов в качестве подчиенных
     const children = [
