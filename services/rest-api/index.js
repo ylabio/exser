@@ -352,7 +352,7 @@ class RestAPI {
    */
   async superTest(params) {
     if (!this._superTest) {
-      this._superTest = require('supertest')(await this.start(params));
+      this._superTest = require('supertest')(await this.getApp(params));
     }
     return this._superTest;
   }
