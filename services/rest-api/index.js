@@ -14,25 +14,29 @@ class RestAPI {
     this.config.url = `${this.config.protocol}${this.config.host}${this.config.port?':'+this.config.port:''}${this.config.baseUrl}`;
     this.services = services;
     this.spec = await this.services.getSpec();
+    this.app = null
     return this;
   }
 
   async start(params = {atFirst:null, atEnd:null, atError:null, atRequest:null, atResponse: null}) {
-    const app = express();
+    if (this.app){
+      return this.app;
+    }
+    this.app = express();
     if (params.atFirst){
-      await params.atFirst(app);
+      await params.atFirst(this.app);
     }
     //app.use(morgan('combined'));
-    app.use(cookieParser());
-    app.use(bodyParser.json());
-    app.use(xmlparser());
-    app.use(bodyParser.urlencoded({extended: true}));
-    app.use(express.static('public'));
-    app.use(this.config.baseUrl, await this.getRouter({atRequest: params.atRequest, atResponse: params.atResponse}));
+    this.app.use(cookieParser());
+    this.app.use(bodyParser.json());
+    this.app.use(xmlparser());
+    this.app.use(bodyParser.urlencoded({extended: true}));
+    this.app.use(express.static('public'));
+    this.app.use(this.config.baseUrl, await this.getRouter({atRequest: params.atRequest, atResponse: params.atResponse}));
     if (params.atEnd){
-      await params.atEnd(app);
+      await params.atEnd(this.app);
     }
-    app.use(this.getErrorHandler({atError: params.atError}));
+    this.app.use(this.getErrorHandler({atError: params.atError}));
 
     this.proxyResponse = (proxyRes, req, res) => {
       return new Promise((resolve, reject) => {
@@ -76,12 +80,12 @@ class RestAPI {
     });
 
     await new Promise((resolve) => {
-      app.listen(this.config.port, this.config.host, function () {
+      this.app.listen(this.config.port, this.config.host, function () {
         resolve();
       });
     });
 
-    return app;
+    return this.app;
   }
 
   /**
@@ -250,7 +254,7 @@ class RestAPI {
             if (!res.statusCode) {
               res.status(200);
             }
-            
+
             if (result.response) {
               result = result.response;
             } else if (Array.isArray(result)) {
@@ -258,11 +262,11 @@ class RestAPI {
             } else {
               result = {result};
             }
-  
+
             if (atResponse) {
               atResponse(result, req, res, next);
             }
-  
+
             res.json(result);
             if (this.config.validateResponse) {
               this.validateResponse({
@@ -332,6 +336,19 @@ class RestAPI {
         });
       }
     };
+  }
+
+  /**
+   * Клиент для тестов
+   * @see https://www.npmjs.com/package/supertest
+   * @param params
+   * @returns {Promise<Test>}
+   */
+  async superTest(params){
+    if (!this._superTest) {
+      this._superTest = require('supertest')(await this.start(params));
+    }
+    return this._superTest;
   }
 }
 
