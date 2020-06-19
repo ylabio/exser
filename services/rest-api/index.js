@@ -11,19 +11,29 @@ class RestAPI {
 
   async init(config, services) {
     this.config = config;
-    this.config.url = `${this.config.protocol}${this.config.host}${this.config.port?':'+this.config.port:''}${this.config.baseUrl}`;
+    this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}${this.config.baseUrl}`;
     this.services = services;
     this.spec = await this.services.getSpec();
-    this.app = null
+    this.app = null;
     return this;
   }
 
-  async start(params = {atFirst:null, atEnd:null, atError:null, atRequest:null, atResponse: null}) {
-    if (this.app){
+  async start(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {
+    const app = await this.getApp(params);
+    await new Promise((resolve) => {
+      app.listen(this.config.port, this.config.host, function () {
+        resolve();
+      });
+    });
+    return app;
+  }
+
+  async getApp(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {
+    if (this.app) {
       return this.app;
     }
     this.app = express();
-    if (params.atFirst){
+    if (params.atFirst) {
       await params.atFirst(this.app);
     }
     //app.use(morgan('combined'));
@@ -32,8 +42,11 @@ class RestAPI {
     this.app.use(xmlparser());
     this.app.use(bodyParser.urlencoded({extended: true}));
     this.app.use(express.static('public'));
-    this.app.use(this.config.baseUrl, await this.getRouter({atRequest: params.atRequest, atResponse: params.atResponse}));
-    if (params.atEnd){
+    this.app.use(this.config.baseUrl, await this.getRouter({
+      atRequest: params.atRequest,
+      atResponse: params.atResponse,
+    }));
+    if (params.atEnd) {
       await params.atEnd(this.app);
     }
     this.app.use(this.getErrorHandler({atError: params.atError}));
@@ -73,19 +86,134 @@ class RestAPI {
             status: proxyRes.statusCode,
             headers: proxyRes.headers,
             body,
-            schema: req.def
+            schema: req.def,
           });
         }
       });
     });
-
-    await new Promise((resolve) => {
-      this.app.listen(this.config.port, this.config.host, function () {
-        resolve();
-      });
-    });
-
     return this.app;
+  }
+
+  /**
+   * Роутер express
+   * @returns {Promise.<*>}
+   */
+  async getRouter({atRequest, atResponse}) {
+    // Переопределение методов роутера для документирования и обработки ответа
+    const router = expressRouter();
+    const methods = ['get', 'post', 'put', 'delete', 'options', 'patch', 'head'];
+    router.origin = {};
+    for (let method of methods) {
+      router.origin[method] = router[method].bind(router);
+      router[method] = (path, def, fun) => {
+        if (typeof def === 'function') {
+          fun = def;
+        } else {
+          if (def.session && def.session.properties && def.session.properties.user && def.session.properties.user.summary) {
+            def.description = `${def.description || ''} \n\n --- \n\n ${def.session.properties.user.summary}`;
+          }
+          if (def.session && def.session.needSecurirty && !def.security) {
+            def.security = this.config.securityAuthorized;
+          }
+          this.spec.paths(method, path, def);
+        }
+        router.origin[method](path, this.callbackWrapper(fun, def, atRequest, atResponse));
+      };
+    }
+    // router.origin.use = router.use.bind(router);
+    // router.use = (...params) => {
+    //   params = params.map(param => typeof param === 'function'
+    //   ? this.callbackWrapper(param) : param);
+    //   router.origin.use(...params);
+    // };
+
+    // Поддержка кроссдоменных запросов
+    router.use(cors(this.config.cors));
+
+    // Подключение всех контроллеров к роутеру
+    const routersKeys = Object.keys(this.config.routers);
+    for (const key of routersKeys) {
+      await
+        this.config.routers[key](router, this.services);
+    }
+
+    return router;
+  }
+
+  callbackWrapper(callback, def, atRequest, atResponse) {
+    return async (req, res, next) => {
+
+      if (atRequest) {
+        await atRequest(req, res, next);
+      }
+
+      req.def = def;
+      // if (def.security) {
+      //   if (!req.session.user) {
+      //     next(new errors.Forbidden({}, 'Access forbidden for guest'));
+      //   }
+      // } else
+      if (def.session) {
+        try {
+          await this.validateSession({
+            req,
+            session: req.session,
+            schema: def,
+          });
+        } catch (e) {
+          //console.log(JSON.stringify(e.data));
+          if (e instanceof errors.Validation) {
+            next(new errors.Forbidden(e.data));
+          } else {
+            next(e);
+          }
+          return;
+        }
+      }
+
+      if (def.proxy) {
+        this.proxy.web(req, res, Object.assign({}, this.config.proxy, {
+          target: this.config.proxy.target + req.baseUrl,
+          selfHandleResponse: true,
+        }));
+      } else {
+        try {
+          res.statusCode = 0; // Для возможности опредлить статус в контроллере
+          let result = await callback(req, res, next);
+
+          if (typeof result !== 'undefined') {
+            if (!res.statusCode) {
+              res.status(200);
+            }
+
+            if (result.response) {
+              result = result.response;
+            } else if (Array.isArray(result)) {
+              result = {result: {items: result}};
+            } else {
+              result = {result};
+            }
+
+            if (atResponse) {
+              atResponse(result, req, res, next);
+            }
+
+            res.json(result);
+            if (this.config.validateResponse) {
+              this.validateResponse({
+                req,
+                status: res.statusCode,
+                headers: res.getHeaders(),
+                body: result,
+                schema: def,
+              });
+            }
+          }
+        } catch (e) {
+          next(e);
+        }
+      }
+    };
   }
 
   /**
@@ -118,7 +246,7 @@ class RestAPI {
               status,
               'content',
               contentType,
-              'schema'
+              'schema',
             ]);
             this.spec.validate(name, body).catch(e => {
               console.log('Not valid response body', req.method, req.route.path);
@@ -163,128 +291,6 @@ class RestAPI {
     }
   }
 
-  /**
-   * Роутер express
-   * @returns {Promise.<*>}
-   */
-  async getRouter({atRequest, atResponse}) {
-    // Переопределение методов роутера для документирования и обработки ответа
-    const router = expressRouter();
-    const methods = ['get', 'post', 'put', 'delete', 'options', 'patch', 'head'];
-    router.origin = {};
-    for (let method of methods) {
-      router.origin[method] = router[method].bind(router);
-      router[method] = (path, def, fun) => {
-        if (typeof def === 'function') {
-          fun = def;
-        } else {
-          if (def.session && def.session.properties && def.session.properties.user && def.session.properties.user.summary){
-            def.description = `${def.description || ''} \n\n --- \n\n ${def.session.properties.user.summary}`;
-          }
-          if (def.session && def.session.needSecurirty && !def.security){
-            def.security = this.config.securityAuthorized;
-          }
-          this.spec.paths(method, path, def);
-        }
-        router.origin[method](path, this.callbackWrapper(fun, def, atRequest, atResponse));
-      };
-    }
-    // router.origin.use = router.use.bind(router);
-    // router.use = (...params) => {
-    //   params = params.map(param => typeof param === 'function'
-    //   ? this.callbackWrapper(param) : param);
-    //   router.origin.use(...params);
-    // };
-
-    // Поддержка кроссдоменных запросов
-    router.use(cors(this.config.cors));
-
-    // Подключение всех контроллеров к роутеру
-    const routersKeys = Object.keys(this.config.routers);
-    for (const key of routersKeys) {
-      await
-        this.config.routers[key](router, this.services);
-    }
-
-    return router;
-  }
-
-  callbackWrapper(callback, def, atRequest, atResponse) {
-    return async (req, res, next) => {
-
-      if (atRequest){
-        await atRequest(req, res, next);
-      }
-
-      req.def = def;
-      // if (def.security) {
-      //   if (!req.session.user) {
-      //     next(new errors.Forbidden({}, 'Access forbidden for guest'));
-      //   }
-      // } else
-      if (def.session) {
-        try {
-          await this.validateSession({
-            req,
-            session: req.session,
-            schema: def
-          });
-        } catch (e) {
-          //console.log(JSON.stringify(e.data));
-          if (e instanceof errors.Validation) {
-            next(new errors.Forbidden(e.data));
-          } else {
-            next(e);
-          }
-          return;
-        }
-      }
-
-      if (def.proxy) {
-        this.proxy.web(req, res, Object.assign({}, this.config.proxy, {
-          target: this.config.proxy.target + req.baseUrl,
-          selfHandleResponse: true
-        }));
-      } else {
-        try {
-          res.statusCode = 0; // Для возможности опредлить статус в контроллере
-          let result = await callback(req, res, next);
-
-          if (typeof result !== "undefined") {
-            if (!res.statusCode) {
-              res.status(200);
-            }
-
-            if (result.response) {
-              result = result.response;
-            } else if (Array.isArray(result)) {
-              result = {result: {items: result}};
-            } else {
-              result = {result};
-            }
-
-            if (atResponse) {
-              atResponse(result, req, res, next);
-            }
-
-            res.json(result);
-            if (this.config.validateResponse) {
-              this.validateResponse({
-                req,
-                status: res.statusCode,
-                headers: res.getHeaders(),
-                body: result,
-                schema: def
-              });
-            }
-          }
-        } catch (e) {
-          next(e);
-        }
-      }
-    };
-  }
-
   getErrorResponse(e) {
     if (e instanceof errors.Custom) {
       return e.toObject();
@@ -293,20 +299,20 @@ class RestAPI {
         id: 400.003,
         code: e.name,
         message: e.message,
-        data: {}
+        data: {},
       };
     } else if (e instanceof Error) {
       return {
         id: 500,
         code: e.name,
         message: e.message,
-        data: {}
+        data: {},
       };
     }
     return {
       id: 500.000,
       code: 'Unknown error',
-      message: JSON.stringify(e)
+      message: JSON.stringify(e),
     };
   }
 
@@ -321,7 +327,7 @@ class RestAPI {
       }
       let result = {error: this.getErrorResponse(err)};
 
-      if (atError){
+      if (atError) {
         atError(result, err, req, res, next);
       }
 
@@ -332,7 +338,7 @@ class RestAPI {
           status: res.statusCode,
           headers: res.getHeaders(),
           body: result,
-          schema: req.def
+          schema: req.def,
         });
       }
     };
@@ -344,7 +350,7 @@ class RestAPI {
    * @param params
    * @returns {Promise<Test>}
    */
-  async superTest(params){
+  async superTest(params) {
     if (!this._superTest) {
       this._superTest = require('supertest')(await this.start(params));
     }
