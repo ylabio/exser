@@ -390,6 +390,7 @@ class Model {
         object.dateCreate = 'dateCreate' in object ? object.dateCreate : moment().toDate();
         object.dateUpdate = 'dateUpdate' in object ? object.dateUpdate : moment().toDate();
         object.isDeleted = 'isDeleted' in object ? object.isDeleted : false;
+        object.isNew = 'isNew' in object ? object.isNew : true;
       };
       await (prepare ? prepare(prepareDefault, object) : prepareDefault(object));
 
@@ -511,7 +512,7 @@ class Model {
       // Системная установка/трансформация свойств
       const prepareDefault = (object, prev) => {
         object.dateUpdate = moment().toDate();
-        //object.isNew = false;
+        object.isNew = false;
       };
       await (prepare ? prepare(prepareDefault, object, prev) : prepareDefault(object, prev));
 
