@@ -465,7 +465,7 @@ class Spec {
     } else {
       result = def;
     }
-    result = objectUtils.clone(result);
+    result = objectUtils.merge(result, newDef/*, {replaceEmpty: true}*/);
 
     if (result.$mode) {
       if (result.$mode === 'view') {
@@ -475,8 +475,6 @@ class Spec {
       }
       delete result.$mode;
     }
-
-    result = objectUtils.merge(result, newDef/*, {replaceEmpty: true}*/);
 
     return result;
   }
