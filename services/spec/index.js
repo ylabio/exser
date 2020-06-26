@@ -465,7 +465,7 @@ class Spec {
     } else {
       result = def;
     }
-    result = objectUtils.merge(result, newDef/*, {replaceEmpty: true}*/);
+    result = objectUtils.clone(result);
 
     if (result.$mode) {
       if (result.$mode === 'view') {
@@ -475,6 +475,9 @@ class Spec {
       }
       delete result.$mode;
     }
+
+    result = objectUtils.merge(result, newDef/*, {replaceEmpty: true}*/);
+
     return result;
   }
 
@@ -497,6 +500,9 @@ class Spec {
         for (let propName of propsNames) {
           result[key][propName] = this.clearRulesView(result[key][propName]);
         }
+      }
+      if (key === 'required') {
+        result[key] = [];
       }
       if (key === '$ref' && schema[key] === '#/components/schemas/object-id') {
         delete result['$ref'];
@@ -521,6 +527,9 @@ class Spec {
         for (let propName of propsNames) {
           result[key][propName] = this.clearRulesUpdate(result[key][propName]);
         }
+      }
+      if (key === 'required') {
+        result[key] = [];
       }
     }
     return result;
