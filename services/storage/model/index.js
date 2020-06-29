@@ -120,7 +120,7 @@ class Model {
     schemes.create = this.spec.extend(this._define.model, {
         title: `${this._define.model.title}. Создание`,
         properties: {
-          $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'isNew', 'author'],
+          $unset: ['_type', 'dateCreate', 'dateUpdate', 'isDeleted', 'author'],
         },
       });
     // Схема редактирования
@@ -153,7 +153,7 @@ class Model {
         title: `${this._define.model.title}. Просмотр списка`,
         properties: {
           // используем схему view для каждого объекта в списке
-          items: {type: 'array', items: this.spec.extend(schemes.view, {})},
+          items: {type: 'array', items: {$ref: `#/components/schemas/${this.type()}.view`}},
           count: {type: 'integer', description: 'Количество объектов без учёта limit и skip'}
         }
       };
