@@ -467,7 +467,10 @@ const queryUtils = {
               : filterMap[key].default
           );
         if (typeof filterMap[key] === 'function') {
-          result.push(filterMap[key](value, key, searchFields));
+          const query = filterMap[key](value, key, searchFields);
+          if (typeof query !== 'undefined'){
+            result.push(query);
+          }
         } else if (typeof value !== 'undefined') {
           // Поля, для которых формировать условие на value
           if (filterMap[key].field) {
