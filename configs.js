@@ -127,10 +127,10 @@ module.exports = {
       tags: [
         {name: 'Authorize', description: 'Авторизация'},
       ],
-      // externalDocs: {
-      //   description: 'Исходник для импорта в postman',
-      //   url: '/api/v1/docs/source.json'
-      // },
+      externalDocs: {
+        description: 'source.json',
+        url: '/api/v1/docs/source.json'
+      },
     }
   },
 

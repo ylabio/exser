@@ -342,20 +342,40 @@ class Spec {
   }
 
   getSchemaOpenApi() {
-    const filter = (obj) => {
+    const filter = (obj, parent = '') => {
       let result;
       if (Array.isArray(obj)) {
         result = [];
         for (let i = 0; i < obj.length; i++) {
-          result.push(filter(obj[i]));
+          result.push(filter(obj[i], `${parent}.[]`));
         }
       } else if (typeof obj === 'object' && obj !== null) {
         result = {};
         let keys = Object.keys(obj);
         for (let key of keys) {
-          if (key !== '_tree' && key !== '_key') {
-            result[key.replace(/\\/g, '/')] = filter(obj[key]);
+          if (key === 'in' && parent === 'parameters.[]'){
+            result.required = true;
           }
+          // Кастомные ключевые слова
+          if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties'].indexOf(key)!==-1 && parent !== 'properties'){
+            if (key ==='i18n'){
+              result.type = 'string';
+            }
+            continue;
+          }
+          // Пустые required
+          if (key === 'required' && Array.isArray(obj[key]) && obj[key].length === 0){
+            continue;
+          }
+          // Сессия в роутах
+          if (key === 'session' && ['get', 'post', 'put', 'delete', 'patch'].indexOf(parent)!==-1){
+            continue;
+          }
+          // Скрытые
+          if (key === '_tree' || key === '_key') {
+            continue;
+          }
+          result[key.replace(/\\/g, '/')] = filter(obj[key], `${key}`);
         }
       } else if (typeof obj === 'function') {
         result = 'func';
