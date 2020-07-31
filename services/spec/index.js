@@ -353,11 +353,11 @@ class Spec {
         result = {};
         let keys = Object.keys(obj);
         for (let key of keys) {
-          if (key === 'in' && parent === 'parameters.[]'){
-            result.required = true;
+          if (parent === 'parameters.[]' && !('required' in obj)) {
+            result.required = (key === 'in');
           }
           // Кастомные ключевые слова
-          if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties'].indexOf(key)!==-1 && parent !== 'properties'){
+          if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties', 'exclusiveMinimum'].indexOf(key)!==-1 && parent !== 'properties'){
             if (key ==='i18n'){
               result.type = 'string';
             }
@@ -368,7 +368,7 @@ class Spec {
             continue;
           }
           // Сессия в роутах
-          if (key === 'session' && ['get', 'post', 'put', 'delete', 'patch'].indexOf(parent)!==-1){
+          if (key === 'session' && ['get', 'post', 'put', 'delete', 'patch', 'head'].indexOf(parent)!==-1){
             continue;
           }
           // Скрытые
