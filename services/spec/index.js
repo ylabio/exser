@@ -340,8 +340,8 @@ class Spec {
         result = {};
         let keys = Object.keys(obj);
         for (let key of keys) {
-          if (key === 'in' && parent === 'parameters.[]'){
-            result.required = true;
+          if (parent === 'parameters.[]' && !('required' in obj)) {
+            result.required = (key === 'in');
           }
           // Кастомные ключевые слова
           if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties', 'exclusiveMinimum'].indexOf(key)!==-1 && parent !== 'properties'){
