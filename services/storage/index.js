@@ -1,6 +1,6 @@
 const MongoDB = require('mongodb');
 const ObjectID = MongoDB.ObjectID;
-const {queryUtils, objectUtils, stringUtils} = require('../../utils');
+const {queryUtils, objectUtils, stringUtils, errors} = require('../../utils');
 
 class Storage {
 
@@ -262,6 +262,14 @@ class Storage {
         });
       }
     } catch (e) {
+      if (e instanceof errors.Forbidden) {
+        return {
+          _id: rel._id,
+          _code: e.code,
+          _message: e.message,
+          _data: e.data,
+        };
+      }
     }
     return {};
   }
