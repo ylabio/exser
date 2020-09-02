@@ -134,6 +134,26 @@ module.exports = {
     }
   },
 
+  access: {
+    /**
+     * Политика по умолчанию при отсутствии правила
+     * allow - разрешить доступ
+     * deny - запретить доступ
+     */
+    default: 'allow', // ['allow', 'deny']
+    /**
+     * Сервис для кастомной проверки доступа
+     */
+    extension: 'role', // or null
+    /**
+     * Общая политика доступа для роутера
+     * В качестве action указываем operationId
+     */
+    actions: {
+      'users.create': {allow: true, auth: true},
+    },
+  },
+
   example: {
     xxx: 0
   },
