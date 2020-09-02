@@ -6,7 +6,7 @@ class Access {
     return this;
   }
 
-  async isAllow(params) {
+  isAllow(params) {
     if (this.config.access[params.action]) {
       // TODO...
     }

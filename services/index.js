@@ -93,6 +93,13 @@ class Services {
   }
 
   /**
+   * @return {Promise.<Access>}
+   */
+  async getAccess(params) {
+    return this.import('./access', params);
+  }
+
+  /**
    * @return {Promise.<Example>}
    */
   async getExample(params) {

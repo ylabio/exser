@@ -30,6 +30,7 @@ class Model {
     this.services = services;
     this.spec = await this.services.getSpec();
     this.storage = await this.services.getStorage();
+    this.access = await this.services.getAccess();
 
     this._define = this.define();
     this._schemes = await this.schemes();
@@ -192,9 +193,13 @@ class Model {
    * @param throwNotFound Исключение, если объект не найден
    * @returns {Promise.<Object>}
    */
-  async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true}) {
+  async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true, access = true}) {
     const pFields = queryUtils.parseFields(fields) || fields || {};
     let result = await this.native.findOne(filter);
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + '.getOne', session})) {
+      throw new errors.Forbidden({}, 'Access forbidden');
+    }
     if (throwNotFound && (!result || (view && !('isDeleted' in pFields) && result.isDeleted))) {
       throw new errors.NotFound({}, 'Not found');
     }
@@ -223,10 +228,19 @@ class Model {
   async getList({
                   filter = {}, sort = {}, limit = 10, skip = 0,
                   view = true, fields = {'*': 1},
-                  session, isDeleted = true
+                  session, isDeleted = true, access = true
                 }) {
     if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
       filter = Object.assign({isDeleted: false}, filter);
+    }
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + '.getList', session})) {
+      const query = this.access.makeFilterQuery({action: this.type() + '.getOne', session});
+      if (query) {
+        filter = Object.assign({_id: query}, filter);
+      } else {
+        return [];
+      }
     }
     const query = await this.native.find(filter)
       .sort(sort)
