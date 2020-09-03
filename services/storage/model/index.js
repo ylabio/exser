@@ -194,12 +194,12 @@ class Model {
    * @returns {Promise.<Object>}
    */
   async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true, access = true}) {
-    const pFields = queryUtils.parseFields(fields) || fields || {};
-    let result = await this.native.findOne(filter);
     // check access
     if (access && !this.access.isAllow({action: this.type() + '.getOne', session})) {
       throw new errors.Forbidden({}, 'Access forbidden');
     }
+    const pFields = queryUtils.parseFields(fields) || fields || {};
+    let result = await this.native.findOne(filter);
     if (throwNotFound && (!result || (view && !('isDeleted' in pFields) && result.isDeleted))) {
       throw new errors.NotFound({}, 'Not found');
     }
@@ -320,7 +320,12 @@ class Model {
    * Создание одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async createOne({body, view = true, validate, prepare, fields = {'*': 1}, session, schema = 'create'}) {
+  async createOne({body, view = true, validate, prepare, fields = {'*': 1}, session, schema = 'create', access = true}) {
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + `.${schema}`, session})) {
+      throw new errors.Forbidden({}, 'Access forbidden');
+    }
+
     try {
       let object;
 
@@ -497,7 +502,12 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update'}) {
+  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update', access = true}) {
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + `.${schema}`, session})) {
+      throw new errors.Forbidden({}, 'Access forbidden');
+    }
+
     let object = objectUtils.clone(body);
     if (!prev) {
       if (id){
@@ -652,7 +662,12 @@ class Model {
    * Обновление множества объектов по условию
    * @returns {Promise<boolean>}
    */
-  async updateMany({filter, body, validate, prepare, session, schema = 'update'}) {
+  async updateMany({filter, body, validate, prepare, session, schema = 'update', access = true}) {
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + `.${schema}`, session})) {
+      throw new errors.Forbidden({}, 'Access forbidden');
+    }
+
     try {
       let object = objectUtils.clone(body);
 
@@ -754,7 +769,12 @@ class Model {
    * @param _id
    * @returns {Promise.<boolean>}
    */
-  async destroyOne({id/*, fields = {'*': 1}*/, session}) {
+  async destroyOne({id/*, fields = {'*': 1}*/, session, access = true}) {
+    // check access
+    if (access && !this.access.isAllow({action: this.type() + '.destroyOne', session})) {
+      throw new errors.Forbidden({}, 'Access forbidden');
+    }
+
     // По всем связям оповестить об удалении
     let result = await this.native.deleteOne({_id: new ObjectID(id)});
     if (result.deletedCount === 0) {
