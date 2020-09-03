@@ -150,7 +150,11 @@ module.exports = {
      * В качестве action указываем operationId
      */
     actions: {
-      'users.create': {allow: true, auth: true},
+      'users.create': {allow: true, auth: false},
+      'users.update': {allow: true, auth: true},
+      'users.delete': {allow: true, auth: true},
+      'users.getOne': {allow: true, auth: true},
+      'users.getList': {allow: true, auth: true},
     },
   },
 
