@@ -14,6 +14,7 @@ class RestAPI {
     this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}${this.config.baseUrl}`;
     this.services = services;
     this.spec = await this.services.getSpec();
+    this.access = await this.services.getAccess();
     this.app = null;
     return this;
   }
@@ -109,9 +110,10 @@ class RestAPI {
         if (typeof def === 'function') {
           fun = def;
         } else {
-          if (def.session && def.session.properties && def.session.properties.user && def.session.properties.user.summary) {
-            def.description = `${def.description || ''} \n\n --- \n\n ${def.session.properties.user.summary}`;
-          }
+          // TODO: добавить description от access сервиса
+          // if (def.session && def.session.properties && def.session.properties.user && def.session.properties.user.summary) {
+          //   def.description = `${def.description || ''} \n\n --- \n\n ${def.session.properties.user.summary}`;
+          // }
           if (def.session && def.session.needSecurirty && !def.security) {
             def.security = this.config.securityAuthorized;
           }
@@ -148,27 +150,14 @@ class RestAPI {
       }
 
       req.def = def;
-      // if (def.security) {
-      //   if (!req.session.user) {
-      //     next(new errors.Forbidden({}, 'Access forbidden for guest'));
-      //   }
-      // } else
-      if (def.session) {
-        try {
-          await this.validateSession({
-            req,
-            session: req.session,
-            schema: def,
-          });
-        } catch (e) {
-          //console.log(JSON.stringify(e.data));
-          if (e instanceof errors.Validation) {
-            next(new errors.Forbidden(e.data));
-          } else {
-            next(e);
-          }
-          return;
-        }
+      // check access
+      const isAllow = this.access.isAllow({
+        action: def.operationId,
+        session: req.session,
+      });
+      if (!isAllow) {
+        next(new errors.Forbidden('Access forbidden'));
+        return;
       }
 
       if (def.proxy) {
