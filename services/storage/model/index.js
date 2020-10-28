@@ -306,7 +306,7 @@ class Model {
    * Создание одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async createOne({body, view = true, validate, prepare, fields = {'*': 1}, session, schema = 'create'}) {
+  async createOne({body, view = true, validate, prepare, fields = {'*': 1}, session, schema = 'create', force = false}) {
     try {
       let object;
 
@@ -398,35 +398,37 @@ class Model {
       object = await this.convertTypes(object);
 
       // Order
-      // Если неопределен, то найти максимальный в базе
-      if (typeof object.order === 'undefined'){
-        object.order = 'max'
-      }
-      if (typeof object.order === 'string') {
-        const sort = object.order === 'max' || object.order === '+1' ? {order: -1} : {order: 1};
-        const orderFilter = this.orderScope(object/*, {isNew: object.isNew}*/);
-        // Новые объекты должны оставться в конце упорядочивания
-        // if (!object.isNew) {
-        //   orderFilter.isNew = false;
-        // }
-        const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
-        if (sort.order === -1) {
-          object.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
-        } else {
-          object.order = maxOrder.length ? maxOrder[0].order : 1;
+      if (!force) {
+        // Если неопределен, то найти максимальный в базе
+        if (typeof object.order === 'undefined') {
+          object.order = 'max'
         }
-        //if (!object.isNew) {
-        await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
-          $inc: {order: +1},
-          $set: {dateUpdate: moment().toDate()}
-        });
-        //}
-      } else {
-        // смещение делается для записей больше или равных order
-        await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
-          $inc: {order: +1},
-          $set: {dateUpdate: moment().toDate()}
-        });
+        if (typeof object.order === 'string') {
+          const sort = object.order === 'max' || object.order === '+1' ? {order: -1} : {order: 1};
+          const orderFilter = this.orderScope(object/*, {isNew: object.isNew}*/);
+          // Новые объекты должны оставться в конце упорядочивания
+          // if (!object.isNew) {
+          //   orderFilter.isNew = false;
+          // }
+          const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+          if (sort.order === -1) {
+            object.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
+          } else {
+            object.order = maxOrder.length ? maxOrder[0].order : 1;
+          }
+          //if (!object.isNew) {
+          await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
+            $inc: {order: +1},
+            $set: {dateUpdate: moment().toDate()}
+          });
+          //}
+        } else {
+          // смещение делается для записей больше или равных order
+          await this.native.updateMany(this.orderScope(object, {order: {$gte: object.order}}), {
+            $inc: {order: +1},
+            $set: {dateUpdate: moment().toDate()}
+          });
+        }
       }
 
       // Добавление прототпированных свойств
@@ -457,18 +459,20 @@ class Model {
       // запись в базу
       let result = (await this.native.insertOne(object)).ops[0];
 
-      // По всем связям оповестить об их добавлении
-      await this.saveLinks({
-        object: result,
-        path: '',
-        set: result
-      });
+      if (!force) {
+        // По всем связям оповестить об их добавлении
+        await this.saveLinks({
+          object: result,
+          path: '',
+          set: result
+        });
 
-      if (result._type !== 'history') {
-        //const history = await this.storage.get('history');
-        const diff = objectUtils.getChanges({}, result);
-        if (Object.keys(diff).length) {
-          await this.onCreate({object: result, diff, session});
+        if (result._type !== 'history') {
+          //const history = await this.storage.get('history');
+          const diff = objectUtils.getChanges({}, result);
+          if (Object.keys(diff).length) {
+            await this.onCreate({object: result, diff, session});
+          }
         }
       }
 
@@ -483,7 +487,7 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update'}) {
+  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update', force = false}) {
     let object = objectUtils.clone(body);
     if (!prev) {
       if (id){
@@ -493,7 +497,7 @@ class Model {
     }
     if (!prev){
       if (upsert && !body._id){
-        return await this.createOne({body, view, fields, session});
+        return await this.createOne({body, view, fields, session, force});
       } else {
         throw new errors.NotFound({filter}, 'Not found for update');
       }
@@ -521,18 +525,36 @@ class Model {
       // Предыдущий order зависит от скоупа измененого объекта (например поменяли родителя и старый order нельзя учитывать)
       const prevOrder = this.isNewScope(prev, scopeObject) ? Number.MAX_SAFE_INTEGER : prev.order;
 
-      // Корректировка нового order
-      if ('order' in object && prev.order !== object.order) {
-        let needCorrect = true;
-        if (typeof object.order === 'string') {
-          if (object.order === '+1') {
-            object.order = prev.order + 1;
-          } else if (object.order === '-1') {
-            object.order = prev.order - 1;
-          } else {
-            // поиск минимального или максимального order
-            const sort = object.order === 'max' ? {order: -1} : {order: 1};
-            // Новые объекты должны оставться в конце упорядочивания
+      if (!force) {
+        // Корректировка нового order
+        if ('order' in object && prev.order !== object.order) {
+          let needCorrect = true;
+          if (typeof object.order === 'string') {
+            if (object.order === '+1') {
+              object.order = prev.order + 1;
+            } else if (object.order === '-1') {
+              object.order = prev.order - 1;
+            } else {
+              // поиск минимального или максимального order
+              const sort = object.order === 'max' ? {order: -1} : {order: 1};
+              // Новые объекты должны оставться в конце упорядочивания
+              const orderFilter = this.orderScope(scopeObject, {
+                _id: {$ne: prev._id},
+                //isNew: scopeObject.isNew
+              });
+              // if (!object.isNew) {
+              //   orderFilter.isNew = false;
+              // }
+              const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+              if (sort.order === -1) {
+                object.order = maxOrder.length ? maxOrder[0].order : 1;
+              } else {
+                object.order = maxOrder.length ? maxOrder[0].order : 1;
+              }
+              needCorrect = false;
+            }
+          }
+          if (needCorrect) {
             const orderFilter = this.orderScope(scopeObject, {
               _id: {$ne: prev._id},
               //isNew: scopeObject.isNew
@@ -540,30 +562,14 @@ class Model {
             // if (!object.isNew) {
             //   orderFilter.isNew = false;
             // }
-            const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
-            if (sort.order === -1) {
-              object.order = maxOrder.length ? maxOrder[0].order : 1;
-            } else {
-              object.order = maxOrder.length ? maxOrder[0].order : 1;
+            // Возможно новое значение выходит за диапазон сущесвтующих и не имеет смысла менять его
+            if (object.order > prevOrder) {
+              const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
+              object.order = Math.min(object.order, maxOrder.length ? maxOrder[0].order + 1 : 1);
+            } else if (object.order < prevOrder) {
+              const minOrder = await this.native.find(orderFilter).sort({order: 1}).limit(1).toArray();
+              object.order = Math.max(object.order, minOrder.length ? minOrder[0].order : 1);
             }
-            needCorrect = false;
-          }
-        }
-        if (needCorrect) {
-          const orderFilter = this.orderScope(scopeObject, {
-            _id: {$ne: prev._id},
-            //isNew: scopeObject.isNew
-          });
-          // if (!object.isNew) {
-          //   orderFilter.isNew = false;
-          // }
-          // Возможно новое значение выходит за диапазон сущесвтующих и не имеет смысла менять его
-          if (object.order > prevOrder) {
-            const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
-            object.order = Math.min(object.order, maxOrder.length ? maxOrder[0].order + 1 : 1);
-          } else if (object.order < prevOrder) {
-            const minOrder = await this.native.find(orderFilter).sort({order: 1}).limit(1).toArray();
-            object.order = Math.max(object.order, minOrder.length ? minOrder[0].order : 1);
           }
         }
       }
@@ -576,52 +582,54 @@ class Model {
       if (result.matchedCount) {
         const objectNew = await this.getOne({filter: {_id}, view: false, fields, session});
 
-        // Смещение order у других объектов, если меняем у текущего
-        if (objectNew.order > prevOrder) {
-          // свдиг вверх, чтобы освободить order снизу
-          await this.native.updateMany(this.orderScope(objectNew, {
+        if (!force) {
+          // Смещение order у других объектов, если меняем у текущего
+          if (objectNew.order > prevOrder) {
+            // свдиг вверх, чтобы освободить order снизу
+            await this.native.updateMany(this.orderScope(objectNew, {
+                _id: {$ne: objectNew._id},
+                order: {
+                  $gt: prevOrder,
+                  $lte: objectNew.order
+                },
+              }),
+              {$inc: {order: -1}, $set: {dateUpdate: moment().toDate()}});
+          } else if (objectNew.order < prevOrder) {
+            // сдвиг вниз, чтобы освободить order сверху
+            await this.native.updateMany(this.orderScope(objectNew, {
               _id: {$ne: objectNew._id},
               order: {
-                $gt: prevOrder,
-                $lte: objectNew.order
-              },
-            }),
-            {$inc: {order: -1}, $set: {dateUpdate: moment().toDate()}});
-        } else if (objectNew.order < prevOrder) {
-          // сдвиг вниз, чтобы освободить order сверху
-          await this.native.updateMany(this.orderScope(objectNew, {
-            _id: {$ne: objectNew._id},
-            order: {
-              $gte: objectNew.order,
-              $lt: prevOrder
-            }
-          }), {$inc: {order: 1}, $set: {dateUpdate: moment().toDate()}});
-        }
-
-        // Обновление обратных отношений
-        await this.saveLinks({
-          object: objectNew, // новый объект
-          path: '',
-          set: objectNew, // новый объект для рекурсивного обхода
-          setPrev: prev, // старый объект для рекурсивного обхода
-          changes: object // изменения
-        });
-
-        // добавление записи в истории
-        if (objectNew._type !== 'history') {
-          //const history = await this.storage.get('history');
-          const diff = objectUtils.getChanges(prev, objectNew, ['dateUpdate']);
-          if (Object.keys(diff).length) {
-            await this.onChange({prev, object: objectNew, diff, session});
+                $gte: objectNew.order,
+                $lt: prevOrder
+              }
+            }), {$inc: {order: 1}, $set: {dateUpdate: moment().toDate()}});
           }
-          // const historyBody = {
-          //   relative: {
-          //     _id: id,
-          //     _type: prev._type,
-          //   },
-          //   diff,
-          // };
-          //await history.createOne({body: historyBody, session});
+
+          // Обновление обратных отношений
+          await this.saveLinks({
+            object: objectNew, // новый объект
+            path: '',
+            set: objectNew, // новый объект для рекурсивного обхода
+            setPrev: prev, // старый объект для рекурсивного обхода
+            changes: object // изменения
+          });
+
+          // добавление записи в истории
+          if (objectNew._type !== 'history') {
+            //const history = await this.storage.get('history');
+            const diff = objectUtils.getChanges(prev, objectNew, ['dateUpdate']);
+            if (Object.keys(diff).length) {
+              await this.onChange({prev, object: objectNew, diff, session});
+            }
+            // const historyBody = {
+            //   relative: {
+            //     _id: id,
+            //     _type: prev._type,
+            //   },
+            //   diff,
+            // };
+            //await history.createOne({body: historyBody, session});
+          }
         }
 
         return view ? await this.view(objectNew, {fields, session, view}) : objectNew;
@@ -676,14 +684,14 @@ class Model {
    * @param view Отфильтровать ответ в соответсвии со схемой отображения
    * @returns {Promise.<Object>}
    */
-  async upsertOne({filter, body, view = true, fields = {'*': 1}, session}) {
+  async upsertOne({filter, body, view = true, fields = {'*': 1}, session, force = false}) {
     let result;
     let object = await this.native.findOne(filter);
     if (!object) {
-      result = await this.createOne({body, view, fields, session});
+      result = await this.createOne({body, view, fields, session, force});
     } else {
       result = await this.updateOne({
-        id: object._id.toString(), body, view, fields, session, prev: object
+        id: object._id.toString(), body, view, fields, session, prev: object, force
       });
     }
     return result;

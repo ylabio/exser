@@ -105,6 +105,7 @@ const queryUtils = {
       return testValue;
 
     } catch (e) {
+
       console.log('bad type');
       return testValue;
     }
