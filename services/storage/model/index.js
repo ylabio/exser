@@ -218,12 +218,13 @@ class Model {
    * @param fields
    * @param session
    * @param isDeleted
+   * @param returnItems Вернуть массив items
    * @returns {Promise.<{items, count}>}
    */
   async getList({
                   filter = {}, sort = {}, limit = 10, skip = 0,
                   view = true, fields = {'*': 1},
-                  session, isDeleted = true
+                  session, isDeleted = true, returnItems = false
                 }) {
     if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
       filter = Object.assign({isDeleted: false}, filter);
@@ -243,7 +244,7 @@ class Model {
       result = await this.viewList(result, {filter, fields, session, view});
     }
 
-    return result;
+    return returnItems ? result.items : result;
   }
 
   async getListChanges({key, ...params}) {
