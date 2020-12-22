@@ -566,8 +566,18 @@ class Spec {
           this.trees[schema.rel.tree][type] = path;
           result[path].treeTypes = this.trees[schema.rel.tree];
         }
-      } else if (schema.type === 'array' && schema.items && schema.items.rel) {
-        result[path] = Object.assign({}, {size: 'M'}, schema.items.rel);
+      } else if (schema.type === 'array' && schema.items) {
+        if (schema.items.rel) {
+          result[path] = Object.assign({}, {size: 'M'}, schema.items.rel);
+        } else if (schema.items.type === 'object' && schema.items.properties){
+          let propsNames = Object.keys(schema.items.properties);
+          for (let propName of propsNames) {
+            Object.assign(
+              result,
+              this.findLinks(schema.items.properties[propName], `${path}${path ? '.' : ''}${propName}`, type)
+            );
+          }
+        }
       } else if (schema.properties) {
         let propsNames = Object.keys(schema.properties);
         for (let propName of propsNames) {

@@ -685,14 +685,14 @@ class Model {
    * @param view Отфильтровать ответ в соответсвии со схемой отображения
    * @returns {Promise.<Object>}
    */
-  async upsertOne({filter, body, view = true, fields = {'*': 1}, session, force = false}) {
+  async upsertOne({filter, body, view = true, fields = {'*': 1}, session, force = false, schemaCreate = 'create', schemaUpdate = 'update'}) {
     let result;
     let object = await this.native.findOne(filter);
     if (!object) {
-      result = await this.createOne({body, view, fields, session, force});
+      result = await this.createOne({body, view, fields, session, force, schema: schemaCreate});
     } else {
       result = await this.updateOne({
-        id: object._id.toString(), body, view, fields, session, prev: object, force
+        id: object._id.toString(), body, view, fields, session, prev: object, force, schema: schemaUpdate
       });
     }
     return result;
