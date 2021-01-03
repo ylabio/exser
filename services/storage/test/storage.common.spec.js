@@ -269,8 +269,6 @@ describe('Storage.common', () => {
           ]
         },
       });
-
-    console.log(root);
     // Проверка children
     expect(root).toMatchObject({
       name: 'Root',

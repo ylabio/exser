@@ -1,5 +1,6 @@
 const Model = require('../model/index.js');
-const {errors} = require('../../../utils/index');
+const {errors, schemaUtils} = require('../../../utils/index');
+const {rel} = require('../../../utils/schema-utils');
 const ObjectID = require('mongodb').ObjectID;
 
 /**
@@ -22,21 +23,21 @@ class Test extends Model {
           status: {type: 'string', enum: ['new', 'confirm'], default: 'new'},
           children: {
             type: 'array',
-            items: this.spec.generate('rel', {
+            items: rel({
               description: 'Подчиненные объекты',
               type: 'test',
               inverse: 'parent',
-              copy: 'name'
+              copy: '_id, _type, name',
             })
           },
-          parent: this.spec.generate('rel', {
+          parent: rel({
             description: 'Родительский клуб',
             type: 'test',
             inverse: 'children',
-            copy: 'name',
+            copy: '_id, _type, name',
             tree: 'custom',
-            default: {}
-          }),
+            default: {},
+          })
         },
         $set: {
           required: [

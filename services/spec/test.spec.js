@@ -27,10 +27,10 @@ describe('Spec', () => {
   test('get by path', async () => {
     // Путь без #
     const title1 = s.spec.get('info/title');
-    expect(title1).toEqual('Exser');
+    expect(title1).toEqual('API');
     // Полный путь
     const title2 = s.spec.get('#/info/title');
-    expect(title2).toEqual('Exser');
+    expect(title2).toEqual('API');
     // Неверный путь
     const title3 = s.spec.get('#/info.title');
     expect(title3).toEqual(undefined);

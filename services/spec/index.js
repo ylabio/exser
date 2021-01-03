@@ -7,7 +7,7 @@ const mc = require('merge-change');
  * Сервис спецификации
  * Содержит все схемы для валидации, фильтрации моделей и описания апи
  * Структура всей схемы соответствует OpenApi 3.0
- * Схемы моделей помещаются в components.schemas
+ * Схемы моделей помещаются в #/components/schemas
  */
 class Spec {
 
@@ -29,6 +29,8 @@ class Spec {
       openapi: '3.0.0',
       info: {
         title: 'API',
+        description: 'REST API',
+        termsOfService: '',//url
         version: '1.0.0',
       },
       servers: [],
@@ -48,8 +50,7 @@ class Spec {
       tags: [], // Теги для группировки роутеров
       externalDocs: {},
     };
-    // Функции-хелперы для генерации фрагментов схем
-    this.generates = {};
+
     this.trees = {};
   }
 
@@ -62,17 +63,11 @@ class Spec {
   async init(config, services) {
     this.config = config;
     this.services = services;
-    this.specification = mc.update(this.specification, config.default, {components: config.extend.components});
-    if (config.extend.keywords) {
-      const names = Object.keys(config.extend.keywords);
+    this.specification = mc.update(this.specification, config.default);
+    if (config.keywords) {
+      const names = Object.keys(config.keywords);
       for (const name of names) {
-        this.setKeyword(name, config.extend.keywords[name]);
-      }
-    }
-    if (config.extend.generate) {
-      const names = Object.keys(config.extend.generate);
-      for (const name of names) {
-        this.setGenerate(name, config.extend.generate[name]);
+        this.setKeyword(name, config.keywords[name]);
       }
     }
     return this;
@@ -127,30 +122,6 @@ class Spec {
   }
 
   /**
-   * Установка функции для генерации фрагментов схем
-   * @param name {String} Название функции
-   * @param callback {Function} Функция, возвращаемая JSONSchema
-   * @todo Возможно надо отказаться от регистрации таких функции и импортировать их напрямую
-   */
-  setGenerate(name, callback) {
-    this.generates[name] = callback;
-  }
-
-  /**
-   * Вызов вспомогательной функции по её имени
-   * @param name {String} Название функции
-   * @param params
-   * @returns {{}|*}
-   * @todo Возможно надо отказаться от регистрации таких функции и импортировать их напрямую
-   */
-  generate(name, ...params) {
-    if (name in this.generates) {
-      return this.generates[name](this, ...params);
-    }
-    return {};
-  }
-
-  /**
    * Валидация
    * @param path Путь к схеме, например #/components/schemas/user
    * @param value Значение для валидации
@@ -172,6 +143,7 @@ class Spec {
 
   /**
    * Обновление схемы в экземпляре валидатора (Ajv)
+   * Вызывается автоматически перед первой валидацией
    * @param path Путь на схему
    */
   updateAjvSchema(path = '') {

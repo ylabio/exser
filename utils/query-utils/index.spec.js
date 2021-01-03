@@ -187,7 +187,6 @@ describe('Formatting search parameter', () => {
       _id: '5c2f3ed1fee590496c93779d',
       _idBad: ' bad ',
       _idNull: '  null ',
-
       _idAuto: '  5c2f3ed1fee590496c93779d   ',
       numberAuto: ' 300.3 ',
       numberAutoComma: '  400,44 44  ',
@@ -225,7 +224,6 @@ describe('Formatting search parameter', () => {
         {stringAuto: {'$eq': 'string'}},
         {stringAutoNotTrim: {'$eq': '  string  '}}]
     });
-
     // ObjectID
     let search2 = queryUtils.formattingSearch(searchField, {
         _id: {kind: '$eq', fields: ['_id'], type: 'ObjectId'},
@@ -234,12 +232,10 @@ describe('Formatting search parameter', () => {
     );
     expect(search2.$and[0]._id.$eq).toBeInstanceOf(ObjectID);
     expect(search2.$and[1]._idAuto.$eq).toBeInstanceOf(ObjectID);
-
-    console.log(/*JSON.stringify(search), */search.$and);
+    //console.log(/*JSON.stringify(search), */search.$and);
   });
 
   test('Custom keys', () => {
-
     let searchField = {
       objectId: ' 5c2f3ed1fee590496c93779d ',
       like: 'name|surname'
@@ -249,7 +245,7 @@ describe('Formatting search parameter', () => {
         like: {kind: 'like', fields: ['name']},
       }
     );
-    console.log(JSON.stringify(search, null, 2), search.$and);
+    //console.log(JSON.stringify(search, null, 2), search.$and);
   });
 });
 

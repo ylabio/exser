@@ -13,7 +13,7 @@ module.exports = {
     // Прокси на другой сервер
     proxy: {
       target: 'https://ylab.com',
-      secure: false
+      secure: false,
     },
     log: true,
     securityAuthorized: [{token: []}], // Способ авторизация в сваггере по умолчанию, если определено условие доступа
@@ -57,85 +57,45 @@ module.exports = {
       /**
        * Код для OPTIONS запросов
        */
-      optionsSuccessStatus: 204
+      optionsSuccessStatus: 204,
     },
   },
 
   storage: {
     db: {
       url: 'mongodb://localhost:27017',
-      name: 'exser'
+      name: 'exser',
     },
-    models: require('./services/storage/models.js')
+    models: require('./services/storage/models.js'),
   },
 
   spec: {
-    extend: require('./services/spec/extend.js'),
     default: {
-      openapi: '3.0.0',
-      info: {
-        title: 'Exser',
-        description: 'Exser REST API',
-        termsOfService: '',//url
-        // contact: {
-        // name: 'API Support',
-        // url: 'http://www.example.com/support',
-        // email: 'support@example.com'
-        // },
-        // license:{
-        // name: 'Apache 2.0',
-        // url: 'http://www.apache.org/licenses/LICENSE-2.0.html'
-        // },
-        version: '1.0.0',
-      },
       servers: [
-        {
-          url: '/api/v1',
-          description: 'API server',
-          // variables: {
-          //   version: {
-          //     enum: [
-          //       'v1',
-          //       'v2'
-          //     ],
-          //     default: 'v1'
-          //   },
-          // }
-        }
+        {url: '/api/v1', description: 'API server'},
       ],
-      paths: {},
       components: {
-        schemas: {},
-        responses: {},
-        parameters: {},
-        examples: {},
-        requestBodies: {},
-        headers: {},
+        parameters: require('./services/spec/components/parameters'),
+        responses: require('./services/spec/components/responses'),
+        schemas: require('./services/spec/components/schemas'),
         securitySchemes: {
-          token: {
-            type: 'apiKey',
-            in: 'header',
-            name: 'X-Token'
-          },
+          token: {type: 'apiKey', in: 'header', name: 'X-Token'},
         },
-        links: {},
-        callbacks: {}
       },
-      security: [
-        //{token: []}, //global
-      ],
       tags: [
         {name: 'Authorize', description: 'Авторизация'},
+        {name: 'Tests', description: 'Тестовая модель'},
       ],
       externalDocs: {
         description: 'source.json',
-        url: '/api/v1/docs/source.json'
+        url: '/api/v1/docs/source.json',
       },
-    }
+    },
+    keywords: require('./services/spec/keywords')
   },
 
   example: {
-    xxx: 0
+    xxx: 0,
   },
 
   tasks: {
@@ -144,7 +104,7 @@ module.exports = {
       interval: 500, // ms
       iterations: 3,
       someOption: 'xxx',
-      log: true
-    }
+      log: true,
+    },
   },
 };

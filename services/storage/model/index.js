@@ -1,6 +1,6 @@
 const ObjectID = require('mongodb').ObjectID;
 const moment = require('moment');
-const {errors, queryUtils, objectUtils, stringUtils} = require('../../../utils');
+const {errors, queryUtils, objectUtils, stringUtils, schemaUtils} = require('../../../utils');
 const deepEqual = require('deep-equal');
 
 class Model {
@@ -95,7 +95,7 @@ class Model {
           },
           isDeleted: {type: 'boolean', description: 'Признак, удалён ли объект', default: false},
           isNew: {type: 'boolean', description: 'Признак, новый ли объект', default: true},
-          proto: this.spec.generate('rel', {
+          proto: schemaUtils.rel({
             description: 'Прототип',
             type: [],
             properties: {
@@ -1175,7 +1175,7 @@ class Model {
       const paths = Object.keys(this._links);
       for (const path of paths) {
         // Обработка связи, если есть inverse в схеме
-        if (this._links[path]._type === foreignObject._type &&
+        if (this._links[path].type === foreignObject._type &&
           this._links[path].inverse === foreignPath) {
 
           let props = await this.onLinkPrepare({
@@ -1236,7 +1236,7 @@ class Model {
       // Поиск связи, которое обратносвязано с foreignObject[foreignPath]
       const paths = Object.keys(this._links);
       for (const path of paths) {
-        if (this._links[path]._type === foreignObject._type &&
+        if (this._links[path].type === foreignObject._type &&
           this._links[path].inverse === foreignPath) {
           // Подготовока объекта обратной связи
           let props = await this.onLinkPrepare({path: path, link: foreignObject, foreign: true});
@@ -1273,7 +1273,7 @@ class Model {
     if (this._links) {
       const paths = Object.keys(this._links);
       for (const path of paths) {
-        if (this._links[path]._type === foreignObject._type &&
+        if (this._links[path].type === foreignObject._type &&
           this._links[path].inverse === foreignPath && !this._links[path].remember) {
 
           if (this._links[path].size === '1') {

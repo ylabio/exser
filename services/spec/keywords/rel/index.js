@@ -21,9 +21,7 @@ module.exports = (spec, services) => ({
         if ((!types || (Array.isArray(types) && !types.length)) && data._type) {
           types = [data._type];
         }
-        //console.log(data, dataPath, parentObject, propName, rootData);
         const linkPath = dataPath.substring(1).replace(/\/[0-9]+/, '');
-        console.log(linkPath);
         if (context.collection) {
           const linkMeta = context.collection._links && context.collection._links[linkPath];
           if (linkMeta) {
@@ -80,7 +78,8 @@ module.exports = (spec, services) => ({
       inverse: {type: 'string'},
       tree: {type: 'string'},
       // По каким полям искать отношение, если они переданы
-      by: {type: 'array'}
+      by: {type: 'array'},
+      x: {type: 'string'}
     },
   }
 });
