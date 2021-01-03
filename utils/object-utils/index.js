@@ -1,5 +1,6 @@
 const ObjectID = require('mongodb').ObjectID;
 const {merge, mergeAll, clone} = require('./merge.js');
+const mc = require('merge-change');
 
 const objectUtils = {
 
@@ -72,9 +73,17 @@ const objectUtils = {
     return obj;
   },
 
-  get: (obj, path, defaultValue) => {
+  /**
+   * Выбор свойства по пути на него
+   * @param obj Объект, чьё свойство выбираем
+   * @param path Путь на свойство. Вложенность через separator
+   * @param defaultValue Значение по умолчанию, если свойство не найдено
+   * @param separator Разделитель вложенного в пути. По умолчанию точка.
+   * @returns {*}
+   */
+  get: (obj, path, defaultValue, separator = '.') => {
     if (typeof path === 'string') {
-      path = path.split('.');
+      path = path.split(separator);
     }
     if (typeof path === 'number') {
       path = [path];
@@ -85,10 +94,19 @@ const objectUtils = {
     if (path.length === 0) {
       return obj;
     }
-    return objectUtils.get(obj[path[0]], path.slice(1), defaultValue);
+    return objectUtils.get(obj[path[0]], path.slice(1), defaultValue, separator);
   },
 
-  set: (obj, path, value, doNotReplace) => {
+  /**
+   * Установка свойств по пути на него
+   * @param obj  Объект, чьё свойство меняем
+   * @param path Путь на свойство
+   * @param value Значение свойства
+   * @param doNotReplace Признак, не устанавливать значение, если свойство существует
+   * @param separator Разделитель вложенного пути. По умолчанию точка.
+   * @returns {*}
+   */
+  set: (obj, path, value, doNotReplace, separator = '.') => {
     if (typeof path === 'number') {
       path = [path];
     }
@@ -96,7 +114,7 @@ const objectUtils = {
       return obj;
     }
     if (typeof path === 'string') {
-      return objectUtils.set(obj, path.split('.'), value, doNotReplace);
+      return objectUtils.set(obj, path.split(separator), value, doNotReplace, separator);
     }
     const currentPath = path[0];
     const currentValue = obj[currentPath];
@@ -116,7 +134,7 @@ const objectUtils = {
       }
     }
 
-    return objectUtils.set(obj[currentPath], path.slice(1), value, doNotReplace);
+    return objectUtils.set(obj[currentPath], path.slice(1), value, doNotReplace, separator);
   },
 
   leave: (object, paths) => {

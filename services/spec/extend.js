@@ -1,6 +1,5 @@
 module.exports = {
+  components: require('./components'),
   generate: require('./generate'),
-  parameters: require('./parameters'),
-  responses: require('./responses'),
-  schemas: require('./schemas'),
+  keywords: require('./keywords'),
 };

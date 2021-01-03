@@ -1,34 +1,40 @@
-const Ajv = require('ajv');
-const ObjectID = require('mongodb').ObjectID;
-const {errors, objectUtils, queryUtils} = require('../../utils');
-const acceptLanguage = require('accept-language');
-const languagesCodes = Object.keys(require('./languages'));
+const Ajv = require('ajv').default;
+const ajvFormats = require("ajv-formats").default;
+const {errors, objectUtils} = require('../../utils');
+const mc = require('merge-change');
 
+/**
+ * Сервис спецификации
+ * Содержит все схемы для валидации, фильтрации моделей и описания апи
+ * Структура всей схемы соответствует OpenApi 3.0
+ * Схемы моделей помещаются в components.schemas
+ */
 class Spec {
 
   constructor() {
     this.validator = new Ajv({
-      v5: true,
-      removeAdditional: true,
-      useDefaults: true,
-      coerceTypes: true,
-      messages: true,
-      allErrors: true,
-      verbose: true,
-      passContext: true
+      strict: false,
+      removeAdditional: true, // Если в схеме явно указано additionalProperties: false, то удалять все не описанные свойства,
+      useDefaults: true, // Установка значения по умолчанию из default если свойства нет или оно null или undefined
+      coerceTypes: true, // Корректировка скалярных типов по схеме. Например строку в число.
+      messages: true, // Сообщения об ошибках
+      allErrors: true, // Искать все ошибки вместо остановки при первой найденной
+      verbose: true, // Передача текущей схемы в callback кастомного ключевого слова
+      passContext: true, // Передача своего контекста в callback кастомного ключевого слова при валидации
     });
+    ajvFormats(this.validator);
 
+    // Объект спецификации по формату OpenAPI3.0
     this.specification = {
-      $async: true,
       openapi: '3.0.0',
       info: {
         title: 'API',
         version: '1.0.0',
       },
       servers: [],
-      paths: {},
+      paths: {}, // Описание роутеров апи
       components: {
-        schemas: {},
+        schemas: {}, // Модели данных
         responses: {},
         parameters: {},
         examples: {},
@@ -36,263 +42,107 @@ class Spec {
         headers: {},
         securitySchemes: {},
         links: {},
-        callbacks: {}
+        callbacks: {},
       },
       security: {},
-      tags: [],
+      tags: [], // Теги для группировки роутеров
       externalDocs: {},
     };
-
+    // Функции-хелперы для генерации фрагментов схем
+    this.generates = {};
     this.trees = {};
-
-    const self = this;
-
-    this.validator.addKeyword('rel', {
-      type: 'object',
-      modifying: true,
-      async: true,
-      compile: (sch, parentSchema) => {
-        return async function (data, dataPath, parentObject, propName, rootData) {
-          const context = this;
-          try {
-            let types = sch.type || sch._type; // тип в схеме (может быть массивом)
-            // Если по схеме тип не опредлен, то берем переданный
-            if ((!types || (Array.isArray(types) && !types.length)) && data._type) {
-              types = [data._type];
-            }
-            const linkPath = dataPath.substring(1).replace(/\[[0-9]+\]/, '');
-            if (context.collection) {
-              const linkMeta = context.collection._links && context.collection._links[linkPath];
-              if (linkMeta) {
-                let cond = {};
-                for (const field of linkMeta.by) {
-                  if (data[field]) {
-                    cond[field] = field === '_id' ? new ObjectID(data[field]) : data[field];
-                  }
-                }
-                if (Object.keys(cond).length) {
-                  if (types) {
-                    if (!Array.isArray(types)) {
-                      types = [types];
-                    }
-                    // Выборка из коллекции
-                    for (let type of types) {
-                      const link = await self.storage.get(type).native.findOne(cond);
-                      if (link) {
-                        const rel = await context.collection.onLinkPrepare({
-                          path: linkPath,
-                          link
-                        });
-                        data._type = type;
-                        if (rel) {
-                          data = Object.assign(data, rel);
-                        }
-                        return true;
-                      }
-                    }
-                  }
-                  //console.log(data);
-                  return false;
-                }
-              }
-            }
-            return true;
-          } catch (e) {
-            //console.log(data);
-            console.log(e);
-            return false;
-          }
-        };
-      },
-      errors: 'full',
-      metaSchema: {
-        type: 'object',
-        properties: {
-          // Условия на связываемый объект
-          type: {type: ['string', 'array']},
-          _type: {type: ['string', 'array']},
-          // Сведения о связи
-          copy: {type: 'string'},
-          search: {type: 'string'},
-          inverse: {type: 'string'},
-          tree: {type: 'string'},
-          // По каким полям искать отношение, если они переданы
-          by: {type: 'array'}
-        },
-      }
-    });
-
-    this.validator.addKeyword('i18n', {
-      type: ['string', 'object'],
-      modifying: true,
-      compile: (sch, parentSchema) => {
-        return function (data, dataPath, parentObject, propName, rootData) {
-          const context = this;
-          try {
-            if (sch === 'in') {
-              if (typeof data === 'string') {
-                acceptLanguage.languages(languagesCodes);
-                const key = acceptLanguage.get(context.session.acceptLang || 'ru');
-                parentObject[propName] = {[key]: data};
-              }
-            } else {
-              if (typeof data === 'object' && context.session.acceptLang !== 'all') {
-                acceptLanguage.languages(Object.keys(data));
-                const key = acceptLanguage.get(context.session.acceptLang || 'ru');
-                parentObject[propName] = data[key];
-              }
-            }
-          } catch (e) {
-            return false;
-          }
-          return true;
-        };
-      },
-      errors: false,
-      metaSchema: {
-        type: 'string',
-        enum: ['in', 'out']
-      }
-    });
   }
 
+  /**
+   * Инициализация при первом обращении к сервису
+   * @param config
+   * @param services
+   * @returns {Promise<Spec>}
+   */
   async init(config, services) {
     this.config = config;
     this.services = services;
-    this.specification = objectUtils.merge(this.specification, config.default);
-    this.schemas(config.extend.schemas);
-    this.responses(config.extend.responses);
-    this.parameters(config.extend.parameters);
-    this.generates = config.extend.generate;
-    this.storage = await this.services.getStorage();
+    this.specification = mc.update(this.specification, config.default, {components: config.extend.components});
+    if (config.extend.keywords) {
+      const names = Object.keys(config.extend.keywords);
+      for (const name of names) {
+        this.setKeyword(name, config.extend.keywords[name]);
+      }
+    }
+    if (config.extend.generate) {
+      const names = Object.keys(config.extend.generate);
+      for (const name of names) {
+        this.setGenerate(name, config.extend.generate[name]);
+      }
+    }
     return this;
   }
 
-  add($id, def) {
-    let paths = $id.match(/^#?\/?([^\/]+)\/(.*)$/);
-    if (paths) {
-      switch (paths[1]) {
-        case 'parameters':
-          this.parameters(paths[2], def);
-          break;
-        case 'responses':
-          this.responses(paths[2], def);
-          break;
-        case 'schemas':
-          this.schemas(paths[2], def);
-          break;
-        default:
-          throw new TypeError('Not supported schema path, defined by $id: ' + $id);
-      }
+  /**
+   * Выбор свойства спецификации
+   * @param path {String} Путь на свойство спецификации. Если не казан, то вся спецификация. Может начинаться с #/
+   * @returns {undefined}
+   */
+  get(path) {
+    if (!path) {
+      return this.specification;
     }
+    let relPath = path.match(/^#?\/?(.*)$/);
+    if (relPath) {
+      return objectUtils.get(this.specification, relPath[1], undefined, '/');
+    }
+    return undefined;
   }
 
-  schemas(name, def) {
-    if (typeof name === 'function') {
-      name = name(this);
+  /**
+   * Изменение свойства спецификации
+   * С применением операций слияния npm пакета "merge-change"
+   * @param path {String} Путь на свойство от корная спецификации, может начинаться с #/
+   * @param def {Any} Значение свойства
+   */
+  set(path, def) {
+    let relPath = path.match(/^#?\/?(.*)$/);
+    if (relPath) {
+      let currentValue = this.get(path);
+      let newValue = mc.update(currentValue, def);
+      objectUtils.set(this.specification, relPath[1], newValue, false, '/');
     }
-    if (typeof name === 'object' && typeof def === 'undefined') {
-      let def = name;
-      let names = Object.keys(def);
-      for (let name of names) {
-        if (typeof def[name] === 'function') {
-          this.specification.components.schemas[name] = def[name](this);
-        } else {
-          this.specification.components.schemas[name] = def[name];
-        }
-        this.specification.components.schemas[name].$async = true;
-      }
-    } else {
-      this.specification.components.schemas[name] = def;
-      this.specification.components.schemas[name].$async = true;
-    }
-    this.isChanged = true;
-  }
-
-  parameters(name, def) {
-    if (typeof name === 'function') {
-      name = name(this);
-    }
-    if (typeof name === 'object' && typeof def === 'undefined') {
-      let def = name;
-      let names = Object.keys(def);
-      for (let name of names) {
-        if (typeof def[name] === 'function') {
-          this.specification.components.parameters[name] = def[name](this);
-        } else {
-          this.specification.components.parameters[name] = def[name];
-        }
-      }
-    } else {
-      this.specification.components.parameters[name] = def;
-    }
-  }
-
-  responses(name, def) {
-    if (typeof name === 'function') {
-      name = name(this);
-    }
-    if (typeof name === 'object' && typeof def === 'undefined') {
-      let def = name;
-      let names = Object.keys(def);
-      for (let name of names) {
-        if (typeof def[name] === 'function') {
-          this.specification.components.responses[name] = def[name](this);
-        } else {
-          this.specification.components.responses[name] = def[name];
-        }
-      }
-    } else {
-      this.specification.components.responses[name] = def;
-    }
-    this.isChanged = true;
-  }
-
-  paths(method, path, def) {
-    path = path.replace(/:([a-z]+)/uig, '{$1}');
-    if (!this.specification.paths[path]) {
-      this.specification.paths[path] = {};
-    }
-    this.specification.paths[path][method] = def;
     this.isChanged = true;
   }
 
   /**
-   * Валидация
-   * @param name Путь к схеме, например #parameters/user.
-   *             Если путь не начинается с #, то добавится #/components/schemas/
-   * @param value Значение для валидации
+   * Установить кастомное ключевое слово для JSONScheme
+   * @link 3
+   * @param name {String}
+   * @param options {Function|Object}
    */
-  async validate(name, value, context = {}, basePath = '') {
-    this._updateSchema();
-    try {
-      let result;
-      if (typeof name === 'string') {
-        if (name.substring(0, 1) !== '#' && name.substring(0, 5) !== 'root#') {
-          name = 'root#/components/schemas/' + name;
-        }
-      }
-      const v = this.validator.getSchema(name);
-      result = await v.call(context, value);
-
-      return result;
-    } catch (e) {
-      //console.log(JSON.stringify(e.data));
-      throw this.customErrors(basePath, e, value);
+  setKeyword(name, options) {
+    if (typeof options === 'function') {
+      options = options(this, this.services);
     }
+    if (!options.keyword) {
+      options.keyword = name;
+    }
+    this.validator.addKeyword(options);
   }
 
-  _updateSchema() {
-    if (this.isChanged) {
-      if (this.validator.getSchema('root')) {
-        this.validator.removeSchema('root');
-      }
-      const es = this.escapeSchema(this.specification);
-      this.validator.addSchema(es, 'root');
-      this.isChanged = false;
-    }
+  /**
+   * Установка функции для генерации фрагментов схем
+   * @param name {String} Название функции
+   * @param callback {Function} Функция, возвращаемая JSONSchema
+   * @todo Возможно надо отказаться от регистрации таких функции и импортировать их напрямую
+   */
+  setGenerate(name, callback) {
+    this.generates[name] = callback;
   }
 
+  /**
+   * Вызов вспомогательной функции по её имени
+   * @param name {String} Название функции
+   * @param params
+   * @returns {{}|*}
+   * @todo Возможно надо отказаться от регистрации таких функции и импортировать их напрямую
+   */
   generate(name, ...params) {
     if (name in this.generates) {
       return this.generates[name](this, ...params);
@@ -301,44 +151,36 @@ class Spec {
   }
 
   /**
-   * @deprecated
+   * Валидация
+   * @param path Путь к схеме, например #/components/schemas/user
+   * @param value Значение для валидации
+   * @param context Контекст для кастомных ключевых слов
    */
-  generateSchema(name, ...params) {
-    return this.generate(name, ...params);
+  async validate(path, value, context = {}) {
+    this.updateAjvSchema(path);
+    const ajvSch = this.validator.getSchema(path);
+    if (!ajvSch){
+      throw Error(`Schema by path ${path} was not found`);
+    }
+    try {
+      return await ajvSch.call(context, value);
+    } catch (e) {
+      console.log(e);
+      throw this.customErrors('', e, value);
+    }
   }
 
-  getSchema(relativePath = '') {
-    this._updateSchema();
-    let result = this.validator.getSchema('root' + relativePath);
-    if (result) {
-      return result.schema;
+  /**
+   * Обновление схемы в экземпляре валидатора (Ajv)
+   * @param path Путь на схему
+   */
+  updateAjvSchema(path = '') {
+    const sch = this.get(path);
+    if (typeof sch === 'object' && !sch.$async) {
+      sch.$async = true; // Необходимо для асинхронного вызова валидатора
+      this.validator.removeSchema('');
+      this.validator.addSchema(this.specification);
     }
-    return {};
-  }
-
-  escapeSchema(obj) {
-    let result;
-    if (Array.isArray(obj)) {
-      result = [];
-      for (let i = 0; i < obj.length; i++) {
-        result.push(this.escapeSchema(obj[i]));
-      }
-    } else if (typeof obj === 'object' && obj !== null) {
-      result = {};
-      let keys = Object.keys(obj);
-      for (let key of keys) {
-        const keyEscape = key.replace(/\//g, '\\');
-        result[keyEscape] = this.escapeSchema(obj[key]);
-        if (key === 'schema' || key === 'session') {
-          result[keyEscape].$async = true;
-        }
-      }
-    } else if (typeof obj === 'function') {
-      result = obj;
-    } else {
-      result = obj;
-    }
-    return result;
   }
 
   getSchemaOpenApi() {
@@ -357,18 +199,18 @@ class Spec {
             result.required = obj[key] === 'path';
           }
           // Кастомные ключевые слова
-          if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties', 'exclusiveMinimum'].indexOf(key)!==-1 && parent !== 'properties'){
-            if (key ==='i18n'){
+          if (['rel', 'i18n', 'errors', 'const', '$async', 'patternProperties', 'exclusiveMinimum'].indexOf(key) !== -1 && parent !== 'properties') {
+            if (key === 'i18n') {
               result.type = 'string';
             }
             continue;
           }
           // Пустые required
-          if (key === 'required' && Array.isArray(obj[key]) && obj[key].length === 0){
+          if (key === 'required' && Array.isArray(obj[key]) && obj[key].length === 0) {
             continue;
           }
           // Сессия в роутах
-          if (key === 'session' && ['get', 'post', 'put', 'delete', 'patch', 'head'].indexOf(parent)!==-1){
+          if (key === 'session' && ['get', 'post', 'put', 'delete', 'patch', 'head'].indexOf(parent) !== -1) {
             continue;
           }
           // Скрытые
@@ -384,32 +226,8 @@ class Spec {
       }
       return result;
     };
-    return filter(this.getSchema());
+    return filter(this.specification);
   }
-
-  makeRef(parts = []) {
-    let result = 'root#/' + parts.map(item => typeof item === 'string'
-      ? item.replace(/\//g, '\\')
-      : item).join('/');
-    result = result.replace(/:([a-z0-9]+)/gi, '{$1}');
-    return result;
-  }
-
-  getValue(path, value) {
-    if (typeof value !== 'object' || value === null) {
-      return undefined;
-    }
-    let paths = path.split('.');
-    let current = value;
-    for (let i = 0; i < paths.length; ++i) {
-      if (typeof current[paths[i]] === 'undefined') {
-        return undefined;
-      } else {
-        current = current[paths[i]];
-      }
-    }
-    return current;
-  };
 
   /**
    * Кастомное сообщение об ошибке
@@ -456,7 +274,7 @@ class Spec {
               rule: keyword,
               //accept: true,
               //value: 'undefined',
-              message: this.getCustomMessage(keyword, schema[key], key) || message
+              message: this.getCustomMessage(keyword, schema[key], key) || message,
             });
             break;
           default:
@@ -466,7 +284,7 @@ class Spec {
               rule: keyword,
               //accept: parentSchema[keyword],
               // value: this.getValue(combinePath(dataPath), value),
-              message: this.getCustomMessage(keyword, parentSchema, key) || message
+              message: this.getCustomMessage(keyword, parentSchema, key) || message,
             });
         }
       });
@@ -478,7 +296,7 @@ class Spec {
   extend(def, newDef) {
     let result = def;
     if (typeof def === 'string') {
-      result = this.getSchema(def);
+      result = this.get(def);
     }
     if (typeof def === 'function') {
       result = def(this);
@@ -530,6 +348,11 @@ class Spec {
     return result;
   };
 
+  /**
+   * @todo
+   * @param schema
+   * @returns {{}}
+   */
   clearRulesUpdate(schema) {
     let result = {};
     let keys = Object.keys(schema);
@@ -553,6 +376,13 @@ class Spec {
     return result;
   };
 
+  /**
+   * @todo Перенести в storage
+   * @param schema
+   * @param path
+   * @param type
+   * @returns {{}}
+   */
   findLinks(schema, path = '', type = '') {
     let result = {};
     if (typeof schema === 'object') {
@@ -569,12 +399,12 @@ class Spec {
       } else if (schema.type === 'array' && schema.items) {
         if (schema.items.rel) {
           result[path] = Object.assign({}, {size: 'M'}, schema.items.rel);
-        } else if (schema.items.type === 'object' && schema.items.properties){
+        } else if (schema.items.type === 'object' && schema.items.properties) {
           let propsNames = Object.keys(schema.items.properties);
           for (let propName of propsNames) {
             Object.assign(
               result,
-              this.findLinks(schema.items.properties[propName], `${path}${path ? '.' : ''}${propName}`, type)
+              this.findLinks(schema.items.properties[propName], `${path}${path ? '.' : ''}${propName}`, type),
             );
           }
         }
@@ -583,7 +413,7 @@ class Spec {
         for (let propName of propsNames) {
           Object.assign(
             result,
-            this.findLinks(schema.properties[propName], `${path}${path ? '.' : ''}${propName}`, type)
+            this.findLinks(schema.properties[propName], `${path}${path ? '.' : ''}${propName}`, type),
           );
         }
       }

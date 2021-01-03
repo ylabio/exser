@@ -11,14 +11,14 @@ class Test extends Model {
     const parent = super.define();
     return {
       collection: 'test',
-      description: 'Тестовая модель',
       indexes: {
         title: [{'title': 1}, {}],
       },
       // Полная схема объекта
       model: this.spec.extend(parent.model, {
+        title: 'Тестовая модель',
         properties: {
-          name: {type: 'string', maxLength: 100},
+          name: {type: 'string', maxLength: 100, xxx: 10},
           status: {type: 'string', enum: ['new', 'confirm'], default: 'new'},
           children: {
             type: 'array',

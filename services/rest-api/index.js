@@ -115,7 +115,13 @@ class RestAPI {
           if (def.session && def.session.needSecurirty && !def.security) {
             def.security = this.config.securityAuthorized;
           }
-          this.spec.paths(method, path, def);
+          // Добавление роута в спецификацию
+          if (!def.hidden) {
+            const pathEscape = this.specPath('paths', path, method);
+            //const pathWithParams = path.replace(/\//g, '\\').replace(/:([a-z]+)/uig, '{$1}');
+            this.spec.set(pathEscape, def);
+            //this.spec.paths(method, path, def);
+          }
         }
         router.origin[method](path, this.callbackWrapper(fun, def, atRequest, atResponse));
       };
@@ -238,7 +244,7 @@ class RestAPI {
           if (defResponse.content[contentType]) {
             //console.log('Validate response body');
             // $ref на схему для body в общем объекте спецификации
-            const name = this.spec.makeRef([
+            const name = this.specPath(
               'paths',
               req.route.path,
               req.method.toLowerCase(),
@@ -247,7 +253,7 @@ class RestAPI {
               'content',
               contentType,
               'schema',
-            ]);
+            );
             this.spec.validate(name, body).catch(e => {
               console.log('Not valid response body', req.method, req.route.path);
             });
@@ -280,13 +286,7 @@ class RestAPI {
   async validateSession({req, session, schema}) {
     if (schema && schema.session) {
       // $ref на схему для body в общем объекте спецификации
-      const name = this.spec.makeRef([
-        'paths',
-        req.route.path,
-        req.method.toLowerCase(),
-        'session',
-        //'schema'
-      ]);
+      const name = this.specPath('paths', req.route.path, req.method.toLowerCase(), 'session');
       return this.spec.validate(name, session, {}, 'session');
     }
   }
@@ -342,6 +342,17 @@ class RestAPI {
         });
       }
     };
+  }
+
+  specPath(...names) {
+    if (names.length === 1 && Array.isArray(names[0])){
+      names = names[0];
+    }
+    let result = names.map(item => typeof item === 'string'
+      ? item.replace(/\//g, '\\')
+      : item).join('/');
+    result = '#/' + result.replace(/:([a-z0-9]+)/gi, '{$1}');
+    return result;
   }
 
   /**

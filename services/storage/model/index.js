@@ -43,7 +43,7 @@ class Model {
     // }
     const keys = Object.keys(this._schemes);
     for (let key of keys) {
-      this.spec.schemas(this.type() + '.' + key, this._schemes[key]);
+      this.spec.set(`#/components/schemas/${this.type()}.${key}`, this._schemes[key]);
     }
     // if (Object.keys(this._links).length) {
     //   console.log(this.type(), this._links);
@@ -944,9 +944,10 @@ class Model {
    */
   async validate(schemeName, object, session) {
     if (this._schemes[schemeName]) {
-      await this.spec.validate(`${this.type()}.${schemeName}`, object, {
+      await this.spec.validate(`#/components/schemas/${this.type()}.${schemeName}`, object, {
         session: session || {},
-        collection: this
+        collection: this,
+        model: this
       });
     }
     return object;
@@ -1334,13 +1335,13 @@ class Model {
         }
       }
       if (method === 'update') {
-        console.log(method, `Всем подчиненным ${object._id} добавить в ${path}._tree если ещё нет`, link._tree);
+        console.log(method, `TODO: Всем подчиненным ${object._id} добавить в ${path}._tree если ещё нет`, link._tree);
       }
       if (method === 'add-foreign') {
-        console.log(method, `Всем подчиненным ${object._id} добавить в ${path}._tree`, link._tree);
+        console.log(method, `TODO: Всем подчиненным ${object._id} добавить в ${path}._tree`, link._tree);
       }
       if (method === 'delete-foreign') {
-        console.log(method, `Во всех подчиненных ${object._id} удалить из ${path}._tree`, linkPrev._tree);
+        console.log(method, `TODO: Во всех подчиненных ${object._id} удалить из ${path}._tree`);
       }
     }
   }
