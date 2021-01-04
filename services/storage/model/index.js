@@ -96,8 +96,8 @@ class Model {
           isDeleted: {type: 'boolean', description: 'Признак, удалён ли объект', default: false},
           isNew: {type: 'boolean', description: 'Признак, новый ли объект', default: true},
           proto: schemaUtils.rel({
+            model: [], // любая
             description: 'Прототип',
-            type: [],
             properties: {
               //isLink: {type: 'boolean', description: 'Связь по ссылке или экземпляр?', default: false}
             },

@@ -23,20 +23,25 @@ class Test extends Model {
           status: {type: 'string', enum: ['new', 'confirm'], default: 'new'},
           children: {
             type: 'array',
-            items: rel({
+            items: schemaUtils.rel({
+              model: 'test',
               description: 'Подчиненные объекты',
-              type: 'test',
               inverse: 'parent',
               copy: '_id, _type, name',
             })
           },
-          parent: rel({
+          parent: schemaUtils.rel({
+            model: 'test',
             description: 'Родительский клуб',
-            type: 'test',
             inverse: 'children',
             copy: '_id, _type, name',
             tree: 'custom',
             default: {},
+          }),
+          title: schemaUtils.i18n({
+            description: 'Заголовок',
+            default: 'Пусто',
+            maxLength: 250
           })
         },
         $set: {

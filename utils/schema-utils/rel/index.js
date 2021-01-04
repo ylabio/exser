@@ -3,7 +3,7 @@
  * Отношение обязательно содержит идентификатор (_id) и тип (_type) связываемой сущности
  * Через ключевое свойство rel описываются параметры отношения. Параметры обрабатываются сервисом storage
  * Параметры генерируемой схемы
- * @param type {String|Array} - на какую модель устанавливается связь, если на любую то указать пустой массив. Несколько вариантов указать в массиве.
+ * @param model {String|Array} - на какую модель устанавливается связь, если на любую то указать пустой массив. Несколько вариантов указать в массиве.
  * @param description {String} - Название (краткое описание) отношения
  * @param copy {String} - какие свойства скопировать в отношение (в формате fields). В отношении окажутся свойства связанной сущности.
  * @param search {String} - какие свойства скопировать в отношение (в формате fields). Копируются значения свойств и помещаются в массив search. Для реализации поиска по множеству свойств без указания по какому (использование фич mongodb)
@@ -17,7 +17,7 @@
  * @returns {Object} JSONSchema
  */
 module.exports = function({
-               type = [],
+               model = [],
                description = '',
                copy = '',
                search = '',
@@ -38,7 +38,7 @@ module.exports = function({
         _key: {type: 'string', description: 'Вторичный идентификатор объекта'},
       }, properties,
     ),
-    rel: {type, copy, search, inverse, tree, by},
+    rel: {type: model, copy, search, inverse, tree, by},
     errors: {rel: 'Not found relation object'},
     additionalProperties: additionalProperties,
     required,
@@ -54,10 +54,10 @@ module.exports = function({
   if (typeof other.example !== 'undefined') {
     result.example = other.example;
   }
-  if (!type || Array.isArray(type)) {
+  if (!model || Array.isArray(model)) {
     result.properties._type = {type: 'string', description: 'Тип объекта'};
-    if (Array.isArray(type) && type.length) {
-      result.properties._type.enum = type;
+    if (Array.isArray(model) && model.length) {
+      result.properties._type.enum = model;
     }
   }
   return result;

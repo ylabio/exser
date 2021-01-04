@@ -224,6 +224,8 @@ class Spec {
   /**
    * Исключение с подробным описанием ошибок по схеме
    * @param rootField
+   * @param validationError
+   * @param value
    * @returns {*}
    */
   customErrors(rootField = '', validationError, value) {
@@ -235,6 +237,7 @@ class Spec {
 
     let issues = [];
     if (errorsList) {
+
       errorsList.map(({keyword, params, dataPath, schema, parentSchema, message}) => {
         let key, path;
         switch (keyword) {
