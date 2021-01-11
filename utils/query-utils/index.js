@@ -613,7 +613,7 @@ const queryUtils = {
         };
       case 'flex':
         // Формирование условия по спецсимволам в значении
-        return queryUtils.parseConditionFlex(value, field, options.types, options.trim);
+        return queryUtils.parseConditionFlex(value, field, options.types, options.trim, options.flexDefault);
       default:
         throw new Error('Unsupported cond = "' + options.cond + '"');
     }
@@ -624,8 +624,10 @@ const queryUtils = {
    * @param condition {String}
    * @param field {String}
    * @param types (String|Array} Типы значения
+   * @param trim
+   * @param [defaultCond] {string} Операция по умолчанию, если она не выявлена в значении
    */
-  parseConditionFlex: (condition, field, types, trim) => {
+  parseConditionFlex: (condition, field, types, trim, defaultCond = '') => {
     const type = (value) => queryUtils.type(value, types, trim);
     if (condition.substr(0, 1) === '"') {
       return {[field]: {$eq: type(condition.substr(1))}};
@@ -670,6 +672,9 @@ const queryUtils = {
           return {$ne: type(item)};
         }
         const match = item.match(/^(\*|\^|%|\/|<{1,2}|>{1,2})?(.+)/);
+        if (!match[1]){
+          match[1] = defaultCond;
+        }
         switch (match[1]) {
           case '*':
             // Вхождение в строку
