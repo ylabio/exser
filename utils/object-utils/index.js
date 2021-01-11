@@ -114,9 +114,16 @@ const objectUtils = {
       return obj;
     }
     if (typeof path === 'string') {
-      return objectUtils.set(obj, path.split(separator), value, doNotReplace, separator);
+      if (path.substr(0,1) === separator) path = path.substr(1);
+      path = path.split(separator);
+      if (path.length > 1) {
+        return objectUtils.set(obj, path, value, doNotReplace, separator);
+      }
     }
-    const currentPath = path[0];
+    let currentPath = path[0];
+    if (Array.isArray(obj)){
+      currentPath = parseInt(currentPath);
+    }
     const currentValue = obj[currentPath];
     if (path.length === 1) {
       if (currentValue === void 0 || !doNotReplace) {

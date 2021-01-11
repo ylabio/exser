@@ -1,4 +1,4 @@
-const {errors, objectUtils, queryUtils} = require('../../../utils');
+const {errors, objectUtils, queryUtils, schemaUtils} = require('../../../utils');
 
 module.exports = async (router, services) => {
 
@@ -14,7 +14,7 @@ module.exports = async (router, services) => {
     operationId: 'tests.create',
     summary: 'Создание',
     description: 'Создание объекта',
-    session: spec.generate('session.user.role', ['admin']),
+    session: schemaUtils.sessionUser(['admin']),
     tags: ['Tests'],
     requestBody: {
       content: {
@@ -32,7 +32,7 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: spec.generate('success', {$ref: '#/components/schemas/test.view'})
+      200: schemaUtils.success({schema: {$ref: '#/components/schemas/test.view'}})
     }
   }, async (req) => {
     return await tests.createOne({
@@ -50,7 +50,7 @@ module.exports = async (router, services) => {
     summary: 'Выбор списка (поиск)',
     description: 'Список объектов с фильтром',
     tags: ['Tests'],
-    //session: spec.generate('session.user.role', ['user']),
+    //session: schemaUtils.sessionUser(['user']),
     parameters: [
       {
         in: 'query',
@@ -72,7 +72,7 @@ module.exports = async (router, services) => {
       },
     ],
     responses: {
-      200: spec.generate('success', {$ref: '#/components/schemas/test.viewList'})
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.viewList'}})
     }
   }, async (req) => {
     const filter = queryUtils.makeFilter(req.query.search, {
@@ -96,7 +96,7 @@ module.exports = async (router, services) => {
     summary: 'Выбор одного',
     description: 'Объекта по идентификатору',
     tags: ['Tests'],
-    //session: spec.generate('session.user.role', ['user']),
+    //session: schemaUtils.sessionUser(['user']),
     parameters: [
       {
         in: 'path',
@@ -113,8 +113,8 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: spec.generate('success', {$ref: '#/components/schemas/test.view'}),
-      404: spec.generate('error', 'Not Found', 404)
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req/*, res*/) => {
 
@@ -135,7 +135,7 @@ module.exports = async (router, services) => {
     summary: 'Редактирование',
     description: 'Изменение объекта',
     tags: ['Tests'],
-    session: spec.generate('session.user.role', ['admin']),
+    session: schemaUtils.sessionUser(['admin']),
     requestBody: {
       content: {
         'application/json': {schema: {$ref: '#/components/schemas/test.update'}}
@@ -158,8 +158,8 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: spec.generate('success', {$ref: '#/components/schemas/test.view'}),
-      404: spec.generate('error', 'Not Found', 404)
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req) => {
 
@@ -178,7 +178,7 @@ module.exports = async (router, services) => {
     operationId: 'tests.delete',
     summary: 'Удаление',
     description: 'Удаление объекта',
-    session: spec.generate('session.user.role', ['admin']),
+    session: schemaUtils.sessionUser(['admin']),
     tags: ['Tests'],
     parameters: [
       {
@@ -197,15 +197,16 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: spec.generate('success', true),
-      404: spec.generate('error', 'Not Found', 404)
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req) => {
 
-    return await tests.deleteOne({
+    const result = await tests.deleteOne({
       id: req.params.id,
       session: req.session,
-      fields: queryUtils.parseFields(req.query.fields)
+      //fields: queryUtils.parseFields(req.query.fields)
     });
+    return await tests.view({object: result, session, fields: queryUtils.parseFields(req.query.fields)})
   });
 };

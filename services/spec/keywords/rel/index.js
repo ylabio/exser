@@ -22,8 +22,8 @@ module.exports = (spec, services) => ({
           types = [data._type];
         }
         const linkPath = dataPath.substring(1).replace(/\/[0-9]+/, '');
-        if (context.collection) {
-          const linkMeta = context.collection._links && context.collection._links[linkPath];
+        if (context.model) {
+          const linkMeta = context.model._links && context.model._links[linkPath];
           if (linkMeta) {
             let cond = {};
             for (const field of linkMeta.by) {
@@ -40,7 +40,7 @@ module.exports = (spec, services) => ({
                 for (let type of types) {
                   const link = await storage.get(type).native.findOne(cond);
                   if (link) {
-                    const rel = await context.collection.onLinkPrepare({
+                    const rel = await context.model.onLinkPrepare({
                       path: linkPath,
                       link
                     });
@@ -70,16 +70,16 @@ module.exports = (spec, services) => ({
     type: 'object',
     properties: {
       // Условия на связываемый объект
-      type: {type: ['string', 'array']},
-      _type: {type: ['string', 'array']},
+      model: {type: ['string', 'array'], description: 'Тип связанной модели. Можно указать несколько типов или пустым массивом обозначить все (любой тип). Тогда тип обязательно передать при создании отношения'},
       // Сведения о связи
-      copy: {type: 'string'},
-      search: {type: 'string'},
-      inverse: {type: 'string'},
-      tree: {type: 'string'},
+      copy: {type: 'string', description: 'Какие свойства связанного объекта скопировать в отношение. Указываются в формате fields'},
+      search: {type: 'string', description: 'Значения каких свойств связанного объекта скопировать в отношение в свойство-массив "search". Указываются в формате fields'},
+      inverse: {type: 'string', description: 'Обратная отношение в связанном объекте. Название свойства. Чтобы связанный объект автоматически проставил (обновил) обратное отношение'},
       // По каким полям искать отношение, если они переданы
-      by: {type: 'array'},
-      x: {type: 'string'}
+      by: {type: 'array', description: 'По каким свойствам искать связанный объект. Условие ИЛИ на перечисленные свойства. По умолчанию поиск по _id или _key'},
+      own: {type: 'boolean', default: false, description: 'Связь-композиция. Учитывается при прототипировании объекта, чтобы создавать новые экземпляры связанных объектов'},
+      proto: {type: 'boolean', default: false, description: 'Связь-прототип. В объект копируются все свойства прототипа'},
+      tree: {type: 'string', description: 'Связь-иерархия. Указывается название иерархии, чтобы в связанном объекте найти связь с той же иерархией '},
     },
   }
 });

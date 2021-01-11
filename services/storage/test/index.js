@@ -1,7 +1,7 @@
 const Model = require('../model/index.js');
-const {errors, schemaUtils} = require('../../../utils/index');
-const {rel} = require('../../../utils/schema-utils');
+const {errors} = require('../../../utils');
 const ObjectID = require('mongodb').ObjectID;
+const type = require('../../../utils/schema-utils');
 
 /**
  * Для тестирования
@@ -9,48 +9,47 @@ const ObjectID = require('mongodb').ObjectID;
 class Test extends Model {
 
   define() {
-    const parent = super.define();
-    return {
+    return this.spec.extend(super.define(), type.model({
+      title: 'Тестовая модель',
       collection: 'test',
       indexes: {
         title: [{'title': 1}, {}],
       },
       // Полная схема объекта
-      model: this.spec.extend(parent.model, {
-        title: 'Тестовая модель',
-        properties: {
-          name: {type: 'string', maxLength: 100, xxx: 10},
-          status: {type: 'string', enum: ['new', 'confirm'], default: 'new'},
-          children: {
-            type: 'array',
-            items: schemaUtils.rel({
-              model: 'test',
-              description: 'Подчиненные объекты',
-              inverse: 'parent',
-              copy: '_id, _type, name',
-            })
-          },
-          parent: schemaUtils.rel({
+      properties: {
+        name: type.string({maxLength: 100}),
+        // index: type.order({description: 'Порядковый номер'}),
+        // owner: type.sessionUser({create: true, update: false, delete: false}),
+        dateTime: type.date({defaults: new Date()}),
+        status: type.string({enums: ['new', 'confirm'], defaults: 'new'}),
+        children: type.array({
+          description: 'Подчиненные объекты',
+          items: type.rel({
             model: 'test',
-            description: 'Родительский клуб',
-            inverse: 'children',
+            inverse: 'parent',
             copy: '_id, _type, name',
-            tree: 'custom',
-            default: {},
+            properties: {
+              linkTitle: type.stringi18n({description: 'Название отношения'}),
+              test: type.string({order: true}),
+            },
           }),
-          title: schemaUtils.i18n({
-            description: 'Заголовок',
-            default: 'Пусто',
-            maxLength: 250
-          })
-        },
-        $set: {
-          required: [
-            'name'
-          ]
-        },
-      })
-    };
+        }),
+        parent: type.rel({
+          description: 'Родительский клуб',
+          model: 'test',
+          inverse: 'children',
+          copy: '_id, _type, name',
+          tree: 'custom',
+          defaults: {},
+        }),
+        title: type.stringi18n({
+          description: 'Заголовок',
+          defaults: 'Пусто',
+          maxLength: 250,
+        }),
+      },
+      required: ['name'],
+    }));
   }
 
   schemes() {

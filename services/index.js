@@ -11,13 +11,16 @@ class Services {
     this.configure(path.join(__dirname, '../configs.js'), path.join(__dirname,'../configs.local.js'));
   }
 
+  /**
+   * @param configs
+   * @returns {Promise<Services>}
+   */
   async init(configs) {
     this.configs = this.configure(configs);
     return this;
   }
 
   /**
-   *
    * @param configsList {Object|String} Options or filenames with options
    * @returns {Services}
    */
@@ -65,35 +68,36 @@ class Services {
   }
 
   /**
-   * @return {Promise.<Storage>}
+   * @return {Promise<Storage>}
    */
   async getStorage(params) {
     return this.import('./storage', params);
   }
 
   /**
-   * @return {Promise.<Spec>}
+   * @return {Promise<Spec>}
    */
   async getSpec(params) {
     return this.import('./spec', params);
   }
 
   /**
-   * @return {Promise.<RestAPI>}
+   * @return {Promise<RestAPI>}
    */
   async getRestApi(params) {
     return this.import('./rest-api', params);
   }
 
   /**
-   * @return {Promise.<Tasks>}
+   * @return {Promise<Tasks>}
    */
   async getTasks(params) {
+
     return this.import('./tasks', params);
   }
 
   /**
-   * @return {Promise.<Example>}
+   * @return {Promise<Example>}
    */
   async getExample(params) {
     return this.import('./example', params);

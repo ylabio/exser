@@ -2,7 +2,7 @@ const Services = require('./services');
 const args = process.argv.slice(2);
 
 (async () => {
-  const services = new Services().configure('configs.js', 'configs.local.js');
+  const services = new Services().configure('configs.js', 'configs.start.js', 'configs.local.js');
   if (args.length && args[0] === '--task') {
     // Управление задачами
     const tasks = await services.getTasks();

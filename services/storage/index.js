@@ -20,11 +20,29 @@ class Storage {
     if (config.mode === 'clear') {
       await this.clearStorage();
     }
+    await this.initModelProperties();
     await this.initModels();
     await this.initCounter();
     return this;
   }
 
+  /**
+   * Регистрация конструкторов (классов) для свойств моделей. Например ObjectID, Relation, Order, StringI18n
+   * Для таких свойство используется ключевое слово instance в схеме модели.
+   * Сервис Spec по умолчанию понимает только нативные классы JS, например Date
+   */
+  async initModelProperties() {
+    const propKeys = Object.keys(this.config.properties);
+    for (const key of propKeys) {
+      this.spec.setKeywordInstanceClass(this.config.properties[key]);
+    }
+  }
+
+  /**
+   * Инициализация всех сервисов моделей
+   * При инициализации как парвило создаётся коллекция в монге, индексы и регается схема модели в сервисе spec
+   * @returns {Promise<void>}
+   */
   async initModels() {
     const modelKeys = Object.keys(this.config.models);
     for (const key of modelKeys) {
@@ -36,20 +54,23 @@ class Storage {
     }
   }
 
+  /**
+   * Инициализация коллекции для счётчика
+   * Используется методом this.newCode()
+   * @returns {Promise<void>}
+   */
   async initCounter() {
-    this.counters = await this.define({
-      collection: '_counters'
-    });
+    this.counters = await this.define('_counters', {collection: '_counters'});
   }
 
   /**
    * Генераор-счётчик
-   * @param filter
+   * @param namespace {Object} Уникальные свойства счётчика, чтобы отличать его от других (если нужен не глобальный)
    * @returns {Promise<*>}
    */
-  async newCode(filter = {scope: 'global'}) {
+  async newCode(namespace = {scope: 'global'}) {
     const result = await this.counters.findAndModify(
-      filter,
+      namespace,
       [['_id', 'asc']],
       {$inc: {count: 1}},
       {upsert: true}
@@ -71,7 +92,7 @@ class Storage {
    * @param service
    * @returns {Promise.<MongoDB.Collection>}
    */
-  async define({type, collection, indexes, options, schemes}, service) {
+  async define(type, {collection, indexes, options, schemes}, service) {
     if (!collection) {
       throw new TypeError('Not defined name of the collection');
     }
@@ -132,6 +153,10 @@ class Storage {
     }
   }
 
+  /**
+   * Ссылка на драйвер монги
+   * @returns {*}
+   */
   get db() {
     return this._db;
   }
@@ -277,6 +302,45 @@ class Storage {
 
   is(type, needType) {
     return type && needType && !!type.match(`^${stringUtils.escapeRegex(needType)}($|-)`);
+  }
+
+  /**
+   * Поиск метаданных в схеме модели
+   * @param schema {Object} Схема текущего свойства. (Начинается со схемы всей модели)
+   * @param model {String} Название модели
+   * @param result {Object} Объект с найденными метаданными
+   * @param metaKeys {Array<String>} Названия ключей, которые запомнить в метаданные
+   * @param path {String} Путь текущего свойства (Начинается с пустого)
+   * @returns {{}}
+   */
+  findMeta(schema, model, metaKeys = [], result = {}, path = '') {
+    if (typeof schema === 'object') {
+      // Запоминаем ключевое слово схемы по пути на свойство
+      for (const key of metaKeys){
+        if (key in schema){
+          if (!(path in result)) {
+            result[path] = {}
+          }
+          result[path][key] = schema[key];
+        }
+      }
+      if (schema.type === 'array' && schema.items) {
+        if (schema.items.type === 'object' && schema.items.properties) {
+          let propsNames = Object.keys(schema.items.properties);
+          for (let propName of propsNames) {
+            // Двойными слэшами кодируется множественность свойства (массив)
+            this.findMeta(schema.items.properties[propName], model, metaKeys, result, `${path}${path ? '//' : '/'}${propName}`);
+          }
+        }
+      } else
+      if (schema.type === 'object' && schema.properties) {
+        let propsNames = Object.keys(schema.properties);
+        for (let propName of propsNames) {
+          this.findMeta(schema.properties[propName], model, metaKeys, result, `${path}${path ? '.' : ''}${propName}`);
+        }
+      }
+    }
+    return result;
   }
 
   getRootSession() {

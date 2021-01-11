@@ -66,7 +66,8 @@ module.exports = {
       url: 'mongodb://localhost:27017',
       name: 'exser',
     },
-    models: require('./services/storage/models.js'),
+    models: {},
+    properties: require('./services/storage/properties'),
   },
 
   spec: {
@@ -84,7 +85,6 @@ module.exports = {
       },
       tags: [
         {name: 'Authorize', description: 'Авторизация'},
-        {name: 'Tests', description: 'Тестовая модель'},
       ],
       externalDocs: {
         description: 'source.json',

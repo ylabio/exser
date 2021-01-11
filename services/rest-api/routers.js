@@ -1,4 +1,6 @@
+/**
+ * Базовые роутеры для приложения
+ */
 module.exports = {
   swagger: require('./swagger'),
-  test: require('./test'),
 };

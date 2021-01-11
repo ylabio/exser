@@ -1,5 +1,16 @@
+module.exports.any = require('./any');
+module.exports.boolean = require('./boolean');
+module.exports.string = require('./string');
+module.exports.number = require('./number');
+module.exports.integer = require('./integer');
+module.exports.array = require('./array');
+module.exports.object = require('./object');
+module.exports.date = require('./date');
 module.exports.rel = require('./rel');
-module.exports.i18n = require('./i18n');
+module.exports.stringi18n = require('./stringi18n');
+module.exports.model = require('./model');
+module.exports.objectId = require('./objectId');
+module.exports.order = require('./order');
 module.exports.error = require('./error');
 module.exports.sessionUser = require('./session-user');
 module.exports.success = require('./success');

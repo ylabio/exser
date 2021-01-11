@@ -1,8 +1,8 @@
 const Ajv = require('ajv').default;
 const ajvFormats = require("ajv-formats").default;
+const ajvKeywords = require("ajv-keywords");
 const {errors, objectUtils} = require('../../utils');
 const mc = require('merge-change');
-
 /**
  * Сервис спецификации
  * Содержит все схемы для валидации, фильтрации моделей и описания апи
@@ -22,6 +22,7 @@ class Spec {
       verbose: true, // Передача текущей схемы в callback кастомного ключевого слова
       passContext: true, // Передача своего контекста в callback кастомного ключевого слова при валидации
     });
+    ajvKeywords(this.validator)
     ajvFormats(this.validator);
 
     // Объект спецификации по формату OpenAPI3.0
@@ -122,6 +123,20 @@ class Spec {
   }
 
   /**
+   * Регистрация класса (конструктора) для ключевого слова instance
+   * @param name
+   * @param construct
+   * @param options
+   */
+  setKeywordInstanceClass({construct, ...options}){
+    require('./keywords/instance').CLASS_NAMES[construct.name] = {
+      construct,
+      ...options
+    }
+    console.log(require('./keywords/instance'));
+  }
+
+  /**
    * Валидация
    * @param path Путь к схеме, например #/components/schemas/user
    * @param value Значение для валидации
@@ -134,6 +149,9 @@ class Spec {
       throw Error(`Schema by path ${path} was not found`);
     }
     try {
+      if (!context.target){
+        context.target = 'js'; // может быть json когда типы конвертируются в совместимые json (например дата строкой)
+      }
       return await ajvSch.call(context, value);
     } catch (e) {
       console.log(e);
@@ -211,10 +229,13 @@ class Spec {
   getCustomMessage(key, schema, property) {
     if (schema && schema.errors) {
       if (typeof schema.errors === 'string') {
-        return schema.errors.replace('{key}', property);
+        return schema.errors;
       } else {
-        if (schema.errors[key]) {
-          return schema.errors[key].replace('{key}', property);
+        if (key in schema.errors) {
+          return schema.errors[key];
+        }
+        if ('*' in schema.errors) {
+          return schema.errors['*'];
         }
       }
     }
@@ -230,41 +251,40 @@ class Spec {
    */
   customErrors(rootField = '', validationError, value) {
     const combinePath = (...paths) => {
-      return paths.join('.').replace(/(\.\.|\[)/g, '.').replace(/(^\.|\.$|])/g, '');
+      return paths.join('/')
+        .replace(/(\/\/|\[)/g, '/') // замена двух точек или [ на слэш
+        .replace(/(^[.\/]|[.\/]$|])/g, ''); // удаление точки или слэша в начале и конце, удаление ]
     };
-
     const errorsList = validationError.errors || this.validator.errors;
-
     let issues = [];
     if (errorsList) {
-
       errorsList.map(({keyword, params, dataPath, schema, parentSchema, message}) => {
-        let key, path;
+        let key, path, customMessage;
         switch (keyword) {
           case 'required':
             key = params.missingProperty;
             path = combinePath(...rootField.split('/'), dataPath, key);
+            customMessage = this.getCustomMessage(keyword, schema[key], key);
             issues.push({
-              path: path,//.split('.'),
-              rule: keyword,
-              //accept: true,
-              //value: 'undefined',
-              message: this.getCustomMessage(keyword, schema[key], key) || message,
+              path: path,
+              rule: customMessage.rule || keyword,
+              message: customMessage.message || customMessage || message,
             });
             break;
           default:
-            key = dataPath.split('.').pop();
-            issues.push({
-              path: combinePath(rootField, dataPath),//.split('.'),
-              rule: keyword,
-              //accept: parentSchema[keyword],
-              // value: this.getValue(combinePath(dataPath), value),
-              message: this.getCustomMessage(keyword, parentSchema, key) || message,
-            });
+            key = dataPath.split('/').pop();
+            customMessage = this.getCustomMessage(keyword, parentSchema, key);
+            if (customMessage !== false){
+              issues.push({
+                path: combinePath(rootField, dataPath),
+                rule: customMessage.rule || keyword,
+                message: customMessage.message || customMessage || message,
+              });
+            }
         }
       });
     }
-    console.log(JSON.stringify(issues));
+    console.log(JSON.stringify(issues, null, 2));
     return new errors.Validation(issues);
   };
 
@@ -297,7 +317,9 @@ class Spec {
     let keys = Object.keys(schema);
     for (let key of keys) {
       if (['type', 'description', 'title', 'items',
-        'properties', 'additionalProperties', '$ref', '$id', 'i18n'].indexOf(key) !== -1) {
+        'properties', 'additionalProperties', '$ref', '$id', 'i18n', 'anyOf', 'oneOf', 'allOf', 'not',
+        'toDate', 'toObjectId'
+      ].indexOf(key) !== -1) {
         result[key] = schema[key];
       }
       if (key === 'i18n') {

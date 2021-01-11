@@ -66,6 +66,7 @@ describe('Storage.common', () => {
     const root = await s.objects.createOne({
       body: {
         name: 'Root',
+        title: 'RootRu'
       },
     });
     const child1 = await s.objects.createOne({body: {name: 'Child 1', parent: {_id: root._id}}});
