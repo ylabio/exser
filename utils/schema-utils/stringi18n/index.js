@@ -41,9 +41,14 @@ module.exports = function ({
 
   let result = {
     anyOf: [s, {type: 'object', patternProperties: {'^.*$': s}}],
-    i18n: 'in',
+    instance: {name: 'I18nProperty', emptyToNull: false, createWithNull: true, options: {}},
     description,
   };
+  // if (empty){
+  //   result.anyOf.unshift({
+  //     enum: ['', null, 'null'], errors: {enum: false}
+  //   })
+  // }
   // if (enums) {
   //   result.enums = enums;
   // }

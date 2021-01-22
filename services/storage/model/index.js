@@ -3,6 +3,7 @@ const moment = require('moment');
 const {errors, queryUtils, objectUtils, stringUtils, schemaUtils} = require('../../../utils');
 const deepEqual = require('deep-equal');
 const type = require('../../../utils/schema-utils');
+const mc = require('merge-change');
 
 class Model {
 
@@ -36,8 +37,9 @@ class Model {
     this._schemes = await this.schemes();
     this._links = this.spec.findLinks(this._define, '', this.type());
     // {Array<String>} Названия ключей, которые запомнить в метаданные. Указываются в порядке обработки
-    this._metaKeys = ['toDate', 'toObjectId'];
-    this._meta = this.storage.findMeta(this._define, this.type(), this._metaKeys);
+    //this._metaKeys = ['instance'];
+    this._propertiesWithInstance = this.storage.findPropertiesWithInstance(this._define, this.type());
+    //console.log(this._propertiesWithInstance);
     this.native = await this.storage.define(this.type(), this._define, this);
 
     // Схемы в спецификацию
@@ -293,104 +295,106 @@ class Model {
    */
   async createOne({body, validate, prepare, fields = '*', view = true, session = {}, schema = 'create', force = false}) {
     try {
-      let object;
+      let object = mc.merge(body, {});
       if (!body._type){
         body._type = this.type();
       }
       // Прототипирование
-      const protoProps = {};
-      if (body.proto && body.proto._id && body.proto._type) {
-        const protoStore = this.storage.get(body.proto._type);
-        const proto = await protoStore.getOne({
-          id: body.proto._id,
-          schema: 'proto',
-          session: this.storage.getRootSession(),
-          fields: '*',
-          throwNotFound: false
-        });
-        // Свойства (объекты на которые ссылается прототип), которые тоже надо прототипировать и привязывать к новому объекту
-        const linkNames = Object.keys(protoStore._links);
-        for (const name of linkNames) {
-          //console.log(protoStore._links[name].own, proto[name]);
-          if (protoStore._links[name].own && proto[name]) {
-            protoProps[name] = [];
-            if (protoStore._links[name].size === 'M') {
-              for (const item of proto[name]) {
-                protoProps[name].push({
-                    proto: {
-                      _id: item._id,
-                      _type: item._type,
-                    }
-                  }
-                );
-              }
-            } else {
-              if (proto[name] && proto[name]._id) {
-                protoProps[name] = {
-                  proto: {
-                    _id: proto[name]._id,
-                    _type: proto[name]._type,
-                  }
-                };
-              }
-            }
-            // delete proto[name]._id;
-            // delete proto[name]._type;
-            if (protoStore._links[name].inverse) {
-              if (!protoProps[name].$set) {
-                protoProps[name].$set = {};
-              }
-              protoProps[name].$set[protoStore._links[name].inverse] = {};
-            }
-          }
-        }
-
-        if (proto) {
-          object = objectUtils.merge(proto, body);
-          if (!('order' in body) && ('order' in proto)) {
-            object.order = proto.order + 1;
-          }
-        } else {
-          throw new errors.Validation({
-            issues: [
-              {
-                path: 'proto',
-                rule: 'exist',
-                message: 'Not fount prototype object'
-              }
-            ]
-          });
-        }
-      } else {
-        object = objectUtils.clone(body);
-      }
+      // const protoProps = {};
+      // if (body.proto && body.proto._id && body.proto._type) {
+      //   const protoStore = this.storage.get(body.proto._type);
+      //   const proto = await protoStore.getOne({
+      //     id: body.proto._id,
+      //     schema: 'proto',
+      //     session: this.storage.getRootSession(),
+      //     fields: '*',
+      //     throwNotFound: false
+      //   });
+      //   // Свойства (объекты на которые ссылается прототип), которые тоже надо прототипировать и привязывать к новому объекту
+      //   const linkNames = Object.keys(protoStore._links);
+      //   for (const name of linkNames) {
+      //     //console.log(protoStore._links[name].own, proto[name]);
+      //     if (protoStore._links[name].own && proto[name]) {
+      //       protoProps[name] = [];
+      //       if (protoStore._links[name].size === 'M') {
+      //         for (const item of proto[name]) {
+      //           protoProps[name].push({
+      //               proto: {
+      //                 _id: item._id,
+      //                 _type: item._type,
+      //               }
+      //             }
+      //           );
+      //         }
+      //       } else {
+      //         if (proto[name] && proto[name]._id) {
+      //           protoProps[name] = {
+      //             proto: {
+      //               _id: proto[name]._id,
+      //               _type: proto[name]._type,
+      //             }
+      //           };
+      //         }
+      //       }
+      //       // delete proto[name]._id;
+      //       // delete proto[name]._type;
+      //       if (protoStore._links[name].inverse) {
+      //         if (!protoProps[name].$set) {
+      //           protoProps[name].$set = {};
+      //         }
+      //         protoProps[name].$set[protoStore._links[name].inverse] = {};
+      //       }
+      //     }
+      //   }
+      //
+      //   if (proto) {
+      //     object = objectUtils.merge(proto, body);
+      //     if (!('order' in body) && ('order' in proto)) {
+      //       object.order = proto.order + 1;
+      //     }
+      //   } else {
+      //     throw new errors.Validation({
+      //       issues: [
+      //         {
+      //           path: 'proto',
+      //           rule: 'exist',
+      //           message: 'Not fount prototype object'
+      //         }
+      //       ]
+      //     });
+      //   }
+      // } else {
+      //   object = mc.merge(body, {});
+      // }
 
       // Валидация по схеме
-      let objectValid = await this.validate({object, schema, session, target: 'js'});
+      let objectValid = await this.validate({object, schema, session});
+
+      // Инициализация обязательных свойств, отсутствующих в схеме создания
+      objectValid._id = object._id ? ObjectID(object._id) : new ObjectID();
+      objectValid._type = this.type();
+      objectValid.isDeleted = 'isDeleted' in objectValid ? objectValid.isDeleted : false;
+      objectValid.isNew = 'isNew' in objectValid ? objectValid.isNew : true;
+      // @todo Удалить, когда будут перенесены свойства
+      objectValid.dateCreate = 'dateCreate' in objectValid ? objectValid.dateCreate : moment().toDate();
+      objectValid.dateUpdate = 'dateUpdate' in objectValid ? objectValid.dateUpdate : moment().toDate();
+
+      // Обработка свойств-экземпляров перед кастомной валидацией и сохранением объекта
+      await this.processPropertiesWithInstance({method: 'beforeSave', value: objectValid, object: objectValid, session});
 
       // Кастомная валидация
       if (validate){
         objectValid = validate({object: objectValid, source: object, schema, session, target: 'js'});
       }
-      // Обязательные для всех свойства
-      objectValid._id = object._id ? ObjectID(object._id) : new ObjectID();
-      objectValid._type = this.type();
-      objectValid.isDeleted = 'isDeleted' in objectValid ? objectValid.isDeleted : false;
 
-      // @todo Удалить, когда будут перенесены свойства
-      objectValid.dateCreate = 'dateCreate' in objectValid ? objectValid.dateCreate : moment().toDate();
-      objectValid.dateUpdate = 'dateUpdate' in objectValid ? objectValid.dateUpdate : moment().toDate();
-
-      objectValid.isNew = 'isNew' in objectValid ? objectValid.isNew : true;
-
-      // Подготовка свойств по метаданным схемы (а основном отношения)
-      objectValid = await this.prepare({value: objectValid, object: objectValid, session});
+      // Подготовка свойств-экземпляров
+      //await this.processPropertiesWithInstance({method: 'prepare', value: objectValid, object: objectValid, session});
       //console.log(objectValid);
 
       // Кастомная подготовка свойств
-      if (prepare){
-        objectValid = prepare({object: objectValid, session});
-      }
+      // if (prepare){
+      //   objectValid = prepare({object: objectValid, session});
+      // }
 
       // // Системная установка/трансформация свойств
       // const prepareDefault = async (object) => {
@@ -407,83 +411,88 @@ class Model {
       // objectValid = await this.convertTypes(objectValid);
 
       // Order
-      if (!force) {
-        // Если неопределен, то найти максимальный в базе
-        if (typeof objectValid.order === 'undefined') {
-          objectValid.order = 'max'
-        }
-        if (typeof objectValid.order === 'string') {
-          const sort = objectValid.order === 'max' || objectValid.order === '+1' ? {order: -1} : {order: 1};
-          const orderFilter = this.orderScope(objectValid/*, {isNew: objectValid.isNew}*/);
-          // Новые объекты должны оставться в конце упорядочивания
-          // if (!objectValid.isNew) {
-          //   orderFilter.isNew = false;
-          // }
-          const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
-          if (sort.order === -1) {
-            objectValid.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
-          } else {
-            objectValid.order = maxOrder.length ? maxOrder[0].order : 1;
-          }
-          //if (!objectValid.isNew) {
-          await this.native.updateMany(this.orderScope(objectValid, {order: {$gte: objectValid.order}}), {
-            $inc: {order: +1},
-            $set: {dateUpdate: moment().toDate()}
-          });
-          //}
-        } else {
-          // смещение делается для записей больше или равных order
-          await this.native.updateMany(this.orderScope(objectValid, {order: {$gte: objectValid.order}}), {
-            $inc: {order: +1},
-            $set: {dateUpdate: moment().toDate()}
-          });
-        }
-      }
+      // if (!force) {
+      //   // Если неопределен, то найти максимальный в базе
+      //   if (typeof objectValid.order === 'undefined') {
+      //     objectValid.order = 'max'
+      //   }
+      //   if (typeof objectValid.order === 'string') {
+      //     const sort = objectValid.order === 'max' || objectValid.order === '+1' ? {order: -1} : {order: 1};
+      //     const orderFilter = this.orderScope(objectValid/*, {isNew: objectValid.isNew}*/);
+      //     // Новые объекты должны оставться в конце упорядочивания
+      //     // if (!objectValid.isNew) {
+      //     //   orderFilter.isNew = false;
+      //     // }
+      //     const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+      //     if (sort.order === -1) {
+      //       objectValid.order = maxOrder.length ? maxOrder[0].order + 1 : 1;
+      //     } else {
+      //       objectValid.order = maxOrder.length ? maxOrder[0].order : 1;
+      //     }
+      //     //if (!objectValid.isNew) {
+      //     await this.native.updateMany(this.orderScope(objectValid, {order: {$gte: objectValid.order}}), {
+      //       $inc: {order: +1},
+      //       $set: {dateUpdate: moment().toDate()}
+      //     });
+      //     //}
+      //   } else {
+      //     // смещение делается для записей больше или равных order
+      //     await this.native.updateMany(this.orderScope(objectValid, {order: {$gte: objectValid.order}}), {
+      //       $inc: {order: +1},
+      //       $set: {dateUpdate: moment().toDate()}
+      //     });
+      //   }
+      // }
 
       // Добавление прототипированных свойств
-      const protoPropsNames = Object.keys(protoProps);
-      for (const protoPropName of protoPropsNames) {
-        const protoProp = protoProps[protoPropName];
-        if (Array.isArray(protoProp)) {
-          for (let i = 0; i < protoProp.length; i++) {
-            const prop = await this.storage.get(protoProp[i].proto._type).createOne({
-              body: protoProp[i],
-              session: this.storage.getRootSession(),
-              view: false
-            });
-            objectValid[protoPropName][i]._id = prop._id.toString();
-            objectValid[protoPropName][i]._type = prop._type;
-          }
-        } else {
-          const prop = await this.storage.get(protoProp.proto._type).createOne({
-            body: protoProp,
-            session: this.storage.getRootSession(),
-            view: false
-          });
-          objectValid[protoPropName]._id = prop._id.toString();
-          objectValid[protoPropName]._type = prop._type;
-        }
-      }
+      // const protoPropsNames = Object.keys(protoProps);
+      // for (const protoPropName of protoPropsNames) {
+      //   const protoProp = protoProps[protoPropName];
+      //   if (Array.isArray(protoProp)) {
+      //     for (let i = 0; i < protoProp.length; i++) {
+      //       const prop = await this.storage.get(protoProp[i].proto._type).createOne({
+      //         body: protoProp[i],
+      //         session: this.storage.getRootSession(),
+      //         view: false
+      //       });
+      //       objectValid[protoPropName][i]._id = prop._id.toString();
+      //       objectValid[protoPropName][i]._type = prop._type;
+      //     }
+      //   } else {
+      //     const prop = await this.storage.get(protoProp.proto._type).createOne({
+      //       body: protoProp,
+      //       session: this.storage.getRootSession(),
+      //       view: false
+      //     });
+      //     objectValid[protoPropName]._id = prop._id.toString();
+      //     objectValid[protoPropName]._type = prop._type;
+      //   }
+      // }
+
+      //await this.processPropertiesWithInstance({method: 'beforeSave', value: objectValid, object: objectValid, session});
 
       // запись в базу
       let result = (await this.native.insertOne(objectValid)).ops[0];
 
-      if (!force) {
-        // По всем связям оповестить об их добавлении
-        await this.saveLinks({
-          object: result,
-          path: '',
-          set: result
-        });
+      // Обработка свойств-экземпляров после сохранения объекта
+      await this.processPropertiesWithInstance({method: 'afterSave', value: objectValid, object: objectValid, session});
 
-        if (result._type !== 'history') {
-          //const history = await this.storage.get('history');
-          const diff = objectUtils.getChanges({}, result);
-          if (Object.keys(diff).length) {
-            await this.onCreate({object: result, diff, session});
-          }
-        }
-      }
+      // if (!force) {
+      //   // По всем связям оповестить об их добавлении
+      //   await this.saveLinks({
+      //     object: result,
+      //     path: '',
+      //     set: result
+      //   });
+      //
+      //   if (result._type !== 'history') {
+      //     //const history = await this.storage.get('history');
+      //     const diff = objectUtils.getChanges({}, result);
+      //     if (Object.keys(diff).length) {
+      //       await this.onCreate({object: result, diff, session});
+      //     }
+      //   }
+      // }
 
       // Подготовка на вывод
       return view ? await this.view(result, {fields, session, view}) : result;
@@ -496,23 +505,44 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, filter = {}, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, upsert = false, schema = 'update', force = false}) {
-    let object = objectUtils.clone(body);
+  async updateOne({id, filter, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, schema = 'update', force = false}) {
+    let object = mc.merge(body, {});
+    // Текущий объект в базе
     if (!prev) {
       if (id){
         filter = {_id: new ObjectID(id)};
       }
-      prev = await this.native.findOne(filter);
+      if (filter) {
+        prev = await this.native.findOne(filter);
+      }
     }
     if (!prev){
-      if (upsert && !body._id){
-        return await this.createOne({body, view, fields, session, force});
-      } else {
-        throw new errors.NotFound({filter}, 'Not found for update');
-      }
+      throw new errors.NotFound({filter}, 'Not found for update');
     }
     let _id = prev._id;
     try {
+
+
+      let objectValid = await this.validate({object, schema, session});
+
+      objectValid.dateUpdate = new Date();
+      objectValid.isNew = false;
+
+      await this.processPropertiesWithInstance({method: 'beforeSave', value: objectValid, object: objectValid, prev, objectPrev: prev, session});
+
+      // Кастомная валидация
+      if (validate){
+        objectValid = validate({object: objectValid, prev, source: object, schema, session});
+      }
+
+      // Конвертация в плоский объект
+      let $set = objectUtils.convertForSet(object, true);
+
+      let result = await this.native.updateOne({_id}, {$set});
+
+      await this.processPropertiesWithInstance({method: 'aftereSave', value: objectValid, object: objectValid, prev, objectPrev: prev, session});
+
+
       // Валидация с возможностью переопредления
       const validateDefault = (object) => this.validate({object, prev, schema, session, target: 'js'});
       object = await (validate ? validate(validateDefault, object, prev) : validateDefault(object, prev));
@@ -950,96 +980,66 @@ class Model {
    * @param prev {object|null} Предыдущая версия объекта при валидации на изменение данных
    * @param schema {string} Название схемы модели, определенная в методе this.schemes()
    * @param session {object} Объект сессии
-   * @param [target] {string} Цель валидации. js | json От цели зависит конвертация типов и др.
    * @returns {Promise<object>}
    */
-  async validate({object, prev = null, schema, session, target = 'js'}) {
+  async validate({object, prev = null, schema, session}) {
     if (this._schemes[schema]) {
       await this.spec.validate(`#/components/schemas/${this.type()}.${schema}`, object, {
         session: session || {},
-        collection: this,
+        collection: this,//@todo deprecated
         model: this,
-        target
       });
     }
     return object;
   }
 
   /**
-   * Рекурсивная подготовка свойств объекта перед сохранением
-   * Базовая обработка по метаданным схемы.
-   * На каждое зарегистрированное в метаданных ключевое слово схемы для конкретного свойства объекта вызывается метод this[`prepare_${keyword}`]({value, prev, path, object, session, meta})
+   * Рекурсивная обработка свойств-экземпляров
    * @param value {*} Текущее значение свойства (объекта). Обработка рекурсивная, начинается с корня объекта
    * @param prev {object|null} Предыдущее значение свойства (объекта).
    * @param path {string} Путь на текущее свойство от корня объекта. Если пустая строка, то обрабатывается корень объекта
-   * @param object {object|null} Обрабатываемый объекта (корень)
+   * @param object {object} Обрабатываемый объекта (корень)
+   * @param [objectPrev] {object} Текущий объект (корень) в базе, если выполняется обновление
    * @param session {object} Объект сессии
    * @param pathMeta {string} Путь на текущее свойство в метаданных. Элемент массива кодируется двойным слэшем
-   * @returns {Promise<*>}
+   * @param method {string} Методы вызываемый у экземпляра свойства, если он есть
+   * @returns {Promise<void>}
    */
-  async prepare({value, prev = null, path = '', object, session, pathMeta = ''}){
-    if (this._meta[pathMeta]){
-      for (const metaKey of this._metaKeys){
-        const method = `prepare_${metaKey}`;
-        if (metaKey in this._meta[pathMeta] && typeof this[method] === 'function'){
-          value = await this[method]({value, prev, path, object, session, meta: this._meta[pathMeta][metaKey]});
-        }
+  async processPropertiesWithInstance({value, prev, path = '', object, objectPrev, session, pathMeta = '', method = 'onStep'}){
+    if (this._propertiesWithInstance[pathMeta]){
+      if (value && typeof value[method] === 'function') {
+        await value[method]({session, object, objectPrev, path, prev, model: this, services: this.services});
       }
     }
-    if (Array.isArray(value)) {
+    if (mc.utils.type(value) === 'Array') {
       for (let index = 0; index < value.length; index++) {
-        value[index] = await this.prepare({
+        await this.processPropertiesWithInstance({
           value: value[index],
           prev: prev ? prev[index] : undefined,
           path: path + (path ? '/' : '') + index,
           pathMeta: path + '//',
           object,
+          objectPrev,
           session,
+          method
         });
       }
-    } else if (typeof value === 'object' && value !== null) {
+    } else if (mc.utils.type(value) === 'Object') {
       let properties = Object.keys(value);
       for (let name of properties) {
-        value[name] = await this.prepare({
+        await this.processPropertiesWithInstance({
           value: value[name],
           prev: prev ? prev[name] : undefined,
           path: path + (path ? '/' : '') + name,
           pathMeta: path + (path ? '/' : '') + name,
           object,
+          objectPrev,
           session,
+          method
         });
       }
     }
-    return value;
   }
-
-  prepare_toDate({value, prev, path, object, session, meta}){
-    if (!value || value === 'null') {
-      return null
-    } else if (typeof value === 'string') {
-      return new Date(value);
-    }
-    return value;
-  }
-
-  prepare_toObjectId({value, prev, path, object, session, meta}){
-    if (!value || value === 'null') {
-      return null
-    } else if (typeof value === 'string') {
-      return new ObjectID(value);
-    }
-    return value;
-  }
-
-  prepare_order({value, prev, path, object, session, meta}){
-
-  }
-
-  prepare_rel({value, prev, path, object, session, meta}){
-
-  }
-
-
 
   /**
    * Услвовия группировки объектов для упорядочивания (автозначения для order)

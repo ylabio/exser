@@ -13,7 +13,7 @@ class Storage {
     this.spec = await this.services.getSpec();
     this._client = await MongoDB.MongoClient.connect(this.config.db.url, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
     });
     this._db = this._client.db(this.config.db.name);
     this._collections = {};
@@ -73,7 +73,7 @@ class Storage {
       namespace,
       [['_id', 'asc']],
       {$inc: {count: 1}},
-      {upsert: true}
+      {upsert: true},
     );
     if (!result.value) {
       return 1;
@@ -221,7 +221,7 @@ class Storage {
                 object: item,
                 fields: fields[key],
                 empty: false,
-                session
+                session,
               });
               if (item._id) {
                 const rel = await this.loadRel({rel: item, fields: fields[key], session});
@@ -238,12 +238,12 @@ class Storage {
               object: object[key],
               fields: fields[key],
               empty: false,
-              session
+              session,
             });
             if (object[key]._id && (fields[key]['*'] || Object.keys(fields[key]).length > 0)) {
               result[key] = Object.assign(
                 await this.loadRel({rel: object[key], fields: fields[key], session}),
-                link
+                link,
               );
             } else {
               result[key] = link;
@@ -283,7 +283,7 @@ class Storage {
           filter: {_id: new ObjectID(rel._id)},
           fields,
           session,
-          throwNotFound: false
+          throwNotFound: false,
         });
       }
     } catch (e) {
@@ -309,34 +309,30 @@ class Storage {
    * @param schema {Object} Схема текущего свойства. (Начинается со схемы всей модели)
    * @param model {String} Название модели
    * @param result {Object} Объект с найденными метаданными
-   * @param metaKeys {Array<String>} Названия ключей, которые запомнить в метаданные
    * @param path {String} Путь текущего свойства (Начинается с пустого)
    * @returns {{}}
    */
-  findMeta(schema, model, metaKeys = [], result = {}, path = '') {
+  findPropertiesWithInstance(schema, model, result = {}, path = '') {
     if (typeof schema === 'object') {
       // Запоминаем ключевое слово схемы по пути на свойство
-      for (const key of metaKeys){
-        if (key in schema){
-          if (!(path in result)) {
-            result[path] = {}
-          }
-          result[path][key] = schema[key];
+      if ('instance' in schema) {
+        if (!(path in result)) {
+          result[path] = {};
         }
+        result[path] = schema.instance;
       }
       if (schema.type === 'array' && schema.items) {
         if (schema.items.type === 'object' && schema.items.properties) {
           let propsNames = Object.keys(schema.items.properties);
           for (let propName of propsNames) {
             // Двойными слэшами кодируется множественность свойства (массив)
-            this.findMeta(schema.items.properties[propName], model, metaKeys, result, `${path}${path ? '//' : '/'}${propName}`);
+            this.findPropertiesWithInstance(schema.items.properties[propName], model, result, `${path}${path ? '//' : '/'}${propName}`);
           }
         }
-      } else
-      if (schema.type === 'object' && schema.properties) {
+      } else if (schema.type === 'object' && schema.properties) {
         let propsNames = Object.keys(schema.properties);
         for (let propName of propsNames) {
-          this.findMeta(schema.properties[propName], model, metaKeys, result, `${path}${path ? '.' : ''}${propName}`);
+          this.findPropertiesWithInstance(schema.properties[propName], model, result, `${path}${path ? '.' : ''}${propName}`);
         }
       }
     }
@@ -355,8 +351,8 @@ class Storage {
         },
         status: 'confirm',
         isBlocked: false,
-        isDeleted: false
-      }
+        isDeleted: false,
+      },
     };
   }
 }

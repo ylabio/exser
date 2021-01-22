@@ -1,8 +1,9 @@
 const Ajv = require('ajv').default;
-const ajvFormats = require("ajv-formats").default;
-const ajvKeywords = require("ajv-keywords");
+const ajvFormats = require('ajv-formats').default;
+const ajvKeywords = require('ajv-keywords');
 const {errors, objectUtils} = require('../../utils');
 const mc = require('merge-change');
+
 /**
  * Сервис спецификации
  * Содержит все схемы для валидации, фильтрации моделей и описания апи
@@ -22,7 +23,7 @@ class Spec {
       verbose: true, // Передача текущей схемы в callback кастомного ключевого слова
       passContext: true, // Передача своего контекста в callback кастомного ключевого слова при валидации
     });
-    ajvKeywords(this.validator)
+    ajvKeywords(this.validator);
     ajvFormats(this.validator);
 
     // Объект спецификации по формату OpenAPI3.0
@@ -124,16 +125,10 @@ class Spec {
 
   /**
    * Регистрация класса (конструктора) для ключевого слова instance
-   * @param name
    * @param construct
-   * @param options
    */
-  setKeywordInstanceClass({construct, ...options}){
-    require('./keywords/instance').CLASS_NAMES[construct.name] = {
-      construct,
-      ...options
-    }
-    console.log(require('./keywords/instance'));
+  setKeywordInstanceClass(construct) {
+    require('./keywords/instance').CLASS_NAMES[construct.name] = construct;
   }
 
   /**
@@ -145,16 +140,16 @@ class Spec {
   async validate(path, value, context = {}) {
     this.updateAjvSchema(path);
     const ajvSch = this.validator.getSchema(path);
-    if (!ajvSch){
+    if (!ajvSch) {
       throw Error(`Schema by path ${path} was not found`);
     }
     try {
-      if (!context.target){
+      if (!context.target) {
         context.target = 'js'; // может быть json когда типы конвертируются в совместимые json (например дата строкой)
       }
       return await ajvSch.call(context, value);
     } catch (e) {
-      console.log(e);
+      //console.log(e);
       throw this.customErrors('', e, value);
     }
   }
@@ -226,20 +221,29 @@ class Spec {
    * @param property
    * @returns {*}
    */
-  getCustomMessage(key, schema, property) {
+  getCustomMessage(key, schema, property, message) {
+    let result;
     if (schema && schema.errors) {
       if (typeof schema.errors === 'string') {
-        return schema.errors;
+        result = schema.errors;
       } else {
         if (key in schema.errors) {
-          return schema.errors[key];
+          result = schema.errors[key];
         }
         if ('*' in schema.errors) {
-          return schema.errors['*'];
+          result = schema.errors['*'];
         }
       }
     }
-    return null;
+    if (result === false) {
+      return false;
+    }
+    if (!result) {
+      return {rule: key, message};
+    } else if (typeof result === 'object') {
+      return result;
+    }
+    return {rule: key, message};
   };
 
   /**
@@ -264,21 +268,23 @@ class Spec {
           case 'required':
             key = params.missingProperty;
             path = combinePath(...rootField.split('/'), dataPath, key);
-            customMessage = this.getCustomMessage(keyword, schema[key], key);
-            issues.push({
-              path: path,
-              rule: customMessage.rule || keyword,
-              message: customMessage.message || customMessage || message,
-            });
+            customMessage = this.getCustomMessage(keyword, schema[key], key, message);
+            if (customMessage !== false) {
+              issues.push({
+                path: path,
+                rule: customMessage.rule,
+                message: customMessage.message,
+              });
+            }
             break;
           default:
             key = dataPath.split('/').pop();
-            customMessage = this.getCustomMessage(keyword, parentSchema, key);
-            if (customMessage !== false){
+            customMessage = this.getCustomMessage(keyword, parentSchema, key, message);
+            if (customMessage !== false) {
               issues.push({
                 path: combinePath(rootField, dataPath),
-                rule: customMessage.rule || keyword,
-                message: customMessage.message || customMessage || message,
+                rule: customMessage.rule,
+                message: customMessage.message,
               });
             }
         }
@@ -318,7 +324,7 @@ class Spec {
     for (let key of keys) {
       if (['type', 'description', 'title', 'items',
         'properties', 'additionalProperties', '$ref', '$id', 'i18n', 'anyOf', 'oneOf', 'allOf', 'not',
-        'toDate', 'toObjectId'
+        'toDate', 'toObjectId',
       ].indexOf(key) !== -1) {
         result[key] = schema[key];
       }

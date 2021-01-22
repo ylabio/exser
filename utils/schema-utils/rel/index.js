@@ -62,6 +62,7 @@ module.exports = function ({
   let result = object({
     // Метаданные отношения
     rel: {type: model, copy, search, inverse, tree, by},
+    //instance: {name: 'RelProperty', emptyToNull: true, createWithNull: true, options: {type: model, copy, search, inverse, tree, by}},
     // Базовые свойства объекта
     maxProperties,
     minProperties,

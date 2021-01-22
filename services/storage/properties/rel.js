@@ -37,4 +37,4 @@ class RelProperty {
   }
 }
 
-module.exports = {construct: RelProperty, emptyStringToNull: true, canCreateWithNull: true};
+module.exports = RelProperty;

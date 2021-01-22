@@ -27,8 +27,8 @@ module.exports = function ({
       {is: 'Date', errors: {is: false}}, // Экземпляр new Date()
       {type: 'string', format: 'date-time', errors: {format: false}}, // Строка в формате ISO8601 YYYY-MM-DDTHH:mm:ss.sssZ
     ],
-    toDate: true, // Ключевое слово сконвертирует строку в экземпляр даты. Пустое значение в null},
-    instance: {constructor: Date, options: {}},
+    //toDate: true, // Ключевое слово сконвертирует строку в экземпляр даты. Пустое значение в null},
+    instance: {name: 'Date', emptyToNull: true, createWithNull: false, options: {}},
     description,
     errors: {
       anyOf: {message: 'Не является датой или не соответствует формату ISO8601', rule: 'type'},

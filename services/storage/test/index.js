@@ -18,9 +18,21 @@ class Test extends Model {
       // Полная схема объекта
       properties: {
         name: type.string({maxLength: 100}),
+        _id1: type.objectId({description: 'Идентификатор ObjectId'}),
+        _id2: type.objectId({description: 'Идентификатор ObjectId'}),
+        _id3: type.objectId({description: 'Идентификатор ObjectId', empty: true}),
+        dateTime: type.date({defaults: new Date()}),
+        dateTime2: type.date({}),
+        dateTime3: type.date({empty: true}),
+        i18n1: type.stringi18n({}),
+        i18n2: type.stringi18n({}),
+        i18n3: type.stringi18n({}),
+        order1: type.order({}),
+        order2: type.order({}),
+        order3: type.order({}),
+
         // index: type.order({description: 'Порядковый номер'}),
         // owner: type.sessionUser({create: true, update: false, delete: false}),
-        dateTime: type.date({defaults: new Date()}),
         status: type.string({enums: ['new', 'confirm'], defaults: 'new'}),
         children: type.array({
           description: 'Подчиненные объекты',

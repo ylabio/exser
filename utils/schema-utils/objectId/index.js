@@ -25,7 +25,8 @@ module.exports = function ({
       {is: 'ObjectID', errors: {is: false}}, // Экземпляр new ObjectID()
       {type: 'string', pattern: '^[0-9a-fA-F]{24}$', errors: {pattern: false}}, // Строка в формате Hash24
     ],
-    toObjectId: true, // Ключевое слово сконвертирует строку в экземпляр ObjectId. Пустое значение в null},
+    //toObjectId: true, // Ключевое слово сконвертирует строку в экземпляр ObjectId. Пустое значение в null},
+    //instance: {name: 'ObjectID', emptyToNull: true, createWithNull: false},
     description,
     errors: {
       anyOf: {message: 'Incorrect type (ObjectID or 24byte hex string)', rule: 'type'},
@@ -36,7 +37,7 @@ module.exports = function ({
   // Пустое значение не соответствует формату ObjectID, поэтому добавляется третий вариант правила в начало, чтобы строковое правило не меняло null в строку
   if (empty){
     result.anyOf.unshift({
-      enum: ['', null, 'null'], errors: {const: false}
+      enum: ['', null, 'null'], errors: {enum: false}
     })
   }
   if (enums) {
