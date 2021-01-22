@@ -639,7 +639,7 @@ const queryUtils = {
         itemsCond = '$or';
       } else {
         // AND
-        items = condition.split('+');
+        items = condition.split('&');
         itemsCond = '$and';
       }
 
