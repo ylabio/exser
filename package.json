@@ -1,6 +1,6 @@
 {
   "name": "exser",
-  "version": "1.4.26",
+  "version": "1.4.27",
   "description": "API Server for real projects",
   "main": "exser.js",
   "scripts": {
@@ -49,6 +49,7 @@
     "morgan": "^1.10.0",
     "supertest": "^4.0.2",
     "swagger-ui-express": "^4.1.4",
+    "swagger-ui-express-fresh": "^4.1.7",
     "transliteration": "^2.1.11"
   },
   "devDependencies": {
