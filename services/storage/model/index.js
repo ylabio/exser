@@ -536,87 +536,100 @@ class Model {
       }
 
       // Конвертация в плоский объект
-      let $set = objectUtils.convertForSet(object, true);
+      let operation = objectUtils.convertToOperation(objectValid, true);
 
-      let result = await this.native.updateOne({_id}, {$set});
+      let result = await this.native.updateOne({_id}, operation);
 
-      await this.processPropertiesWithInstance({method: 'aftereSave', value: objectValid, object: objectValid, prev, objectPrev: prev, session});
+      if (result.matchedCount) {
+        const objectNew = await this.getOne({filter: {_id}, view: false, fields, session});
 
+        await this.processPropertiesWithInstance({
+          method: 'afterSave',
+          value: objectNew, //objectValid,
+          object: objectNew, //objectValid,
+          prev,
+          objectPrev: prev,
+          session
+        });
 
-      // Валидация с возможностью переопредления
-      const validateDefault = (object) => this.validate({object, prev, schema, session, target: 'js'});
-      object = await (validate ? validate(validateDefault, object, prev) : validateDefault(object, prev));
-
-      // @todo удаление обратных связей, если связи изменены
-
-      // Конвертация значений для монги
-      object = await this.convertTypes(object);
-
-      // Системная установка/трансформация свойств
-      const prepareDefault = (object, prev) => {
-        object.dateUpdate = moment().toDate();
-        object.isNew = false;
-      };
-      await (prepare ? prepare(prepareDefault, object, prev) : prepareDefault(object, prev));
-
-      const scopeObject = objectUtils.merge(prev, object);
-
-      // Предыдущий order зависит от скоупа измененого объекта (например поменяли родителя и старый order нельзя учитывать)
-      const prevOrder = this.isNewScope(prev, scopeObject) ? Number.MAX_SAFE_INTEGER : prev.order;
-
-      if (!force) {
-        // Корректировка нового order
-        if ('order' in object && prev.order !== object.order) {
-          let needCorrect = true;
-          if (typeof object.order === 'string') {
-            if (object.order === '+1') {
-              object.order = prev.order + 1;
-            } else if (object.order === '-1') {
-              object.order = prev.order - 1;
-            } else {
-              // поиск минимального или максимального order
-              const sort = object.order === 'max' ? {order: -1} : {order: 1};
-              // Новые объекты должны оставться в конце упорядочивания
-              const orderFilter = this.orderScope(scopeObject, {
-                _id: {$ne: prev._id},
-                //isNew: scopeObject.isNew
-              });
-              // if (!object.isNew) {
-              //   orderFilter.isNew = false;
-              // }
-              const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
-              if (sort.order === -1) {
-                object.order = maxOrder.length ? maxOrder[0].order : 1;
-              } else {
-                object.order = maxOrder.length ? maxOrder[0].order : 1;
-              }
-              needCorrect = false;
-            }
-          }
-          if (needCorrect) {
-            const orderFilter = this.orderScope(scopeObject, {
-              _id: {$ne: prev._id},
-              //isNew: scopeObject.isNew
-            });
-            // if (!object.isNew) {
-            //   orderFilter.isNew = false;
-            // }
-            // Возможно новое значение выходит за диапазон сущесвтующих и не имеет смысла менять его
-            if (object.order > prevOrder) {
-              const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
-              object.order = Math.min(object.order, maxOrder.length ? maxOrder[0].order + 1 : 1);
-            } else if (object.order < prevOrder) {
-              const minOrder = await this.native.find(orderFilter).sort({order: 1}).limit(1).toArray();
-              object.order = Math.max(object.order, minOrder.length ? minOrder[0].order : 1);
-            }
-          }
-        }
+        // Подготовка на вывод
+        return view ? await this.view(objectNew, {fields, session, view}) : objectNew;
       }
 
-      // Конвертация в плоский объект
-      let $set = objectUtils.convertForSet(object, true);
-
-      let result = await this.native.updateOne({_id}, {$set});
+      // // Валидация с возможностью переопредления
+      // const validateDefault = (object) => this.validate({object, prev, schema, session, target: 'js'});
+      // object = await (validate ? validate(validateDefault, object, prev) : validateDefault(object, prev));
+      //
+      // // @todo удаление обратных связей, если связи изменены
+      //
+      // // Конвертация значений для монги
+      // object = await this.convertTypes(object);
+      //
+      // // Системная установка/трансформация свойств
+      // const prepareDefault = (object, prev) => {
+      //   object.dateUpdate = moment().toDate();
+      //   object.isNew = false;
+      // };
+      // await (prepare ? prepare(prepareDefault, object, prev) : prepareDefault(object, prev));
+      //
+      // const scopeObject = objectUtils.merge(prev, object);
+      //
+      // // Предыдущий order зависит от скоупа измененого объекта (например поменяли родителя и старый order нельзя учитывать)
+      // const prevOrder = this.isNewScope(prev, scopeObject) ? Number.MAX_SAFE_INTEGER : prev.order;
+      //
+      // if (!force) {
+      //   // Корректировка нового order
+      //   if ('order' in object && prev.order !== object.order) {
+      //     let needCorrect = true;
+      //     if (typeof object.order === 'string') {
+      //       if (object.order === '+1') {
+      //         object.order = prev.order + 1;
+      //       } else if (object.order === '-1') {
+      //         object.order = prev.order - 1;
+      //       } else {
+      //         // поиск минимального или максимального order
+      //         const sort = object.order === 'max' ? {order: -1} : {order: 1};
+      //         // Новые объекты должны оставться в конце упорядочивания
+      //         const orderFilter = this.orderScope(scopeObject, {
+      //           _id: {$ne: prev._id},
+      //           //isNew: scopeObject.isNew
+      //         });
+      //         // if (!object.isNew) {
+      //         //   orderFilter.isNew = false;
+      //         // }
+      //         const maxOrder = await this.native.find(orderFilter).sort(sort).limit(1).toArray();
+      //         if (sort.order === -1) {
+      //           object.order = maxOrder.length ? maxOrder[0].order : 1;
+      //         } else {
+      //           object.order = maxOrder.length ? maxOrder[0].order : 1;
+      //         }
+      //         needCorrect = false;
+      //       }
+      //     }
+      //     if (needCorrect) {
+      //       const orderFilter = this.orderScope(scopeObject, {
+      //         _id: {$ne: prev._id},
+      //         //isNew: scopeObject.isNew
+      //       });
+      //       // if (!object.isNew) {
+      //       //   orderFilter.isNew = false;
+      //       // }
+      //       // Возможно новое значение выходит за диапазон сущесвтующих и не имеет смысла менять его
+      //       if (object.order > prevOrder) {
+      //         const maxOrder = await this.native.find(orderFilter).sort({order: -1}).limit(1).toArray();
+      //         object.order = Math.min(object.order, maxOrder.length ? maxOrder[0].order + 1 : 1);
+      //       } else if (object.order < prevOrder) {
+      //         const minOrder = await this.native.find(orderFilter).sort({order: 1}).limit(1).toArray();
+      //         object.order = Math.max(object.order, minOrder.length ? minOrder[0].order : 1);
+      //       }
+      //     }
+      //   }
+      // }
+      //
+      // // Конвертация в плоский объект
+      // let $set = objectUtils.convertForSet(object, true);
+      //
+      // let result = await this.native.updateOne({_id}, {$set});
 
       if (result.matchedCount) {
         const objectNew = await this.getOne({filter: {_id}, view: false, fields, session});

@@ -33,6 +33,23 @@ const objectUtils = {
     return result;
   },
 
+  toFlat: (value, path = '', result = {}, clearUndefined = false) => {
+    if (value && typeof value.toFlat === 'function') {
+      value.toFlat(path, result, clearUndefined);
+    } else if (mc.utils.type(value) === 'Object') {
+      for (const [key, item] of Object.entries(value)) {
+        objectUtils.toFlat(item, path ? `${path}.${key}` : key, result, clearUndefined);
+      }
+    } else if (!clearUndefined || typeof value !== 'undefined') {
+      if (path === '') {
+        result = value;
+      } else {
+        result[path] = value;
+      }
+    }
+    return result;
+  },
+
   getAllValues: (object, clear = false) => {
     const set = objectUtils.convertForSet(object);
     const keys = Object.keys(set);
@@ -114,14 +131,14 @@ const objectUtils = {
       return obj;
     }
     if (typeof path === 'string') {
-      if (path.substr(0,1) === separator) path = path.substr(1);
+      if (path.substr(0, 1) === separator) path = path.substr(1);
       path = path.split(separator);
       if (path.length > 1) {
         return objectUtils.set(obj, path, value, doNotReplace, separator);
       }
     }
     let currentPath = path[0];
-    if (Array.isArray(obj)){
+    if (Array.isArray(obj)) {
       currentPath = parseInt(currentPath);
     }
     const currentValue = obj[currentPath];
@@ -209,7 +226,7 @@ const objectUtils = {
 
   merge: merge,
   mergeAll: mergeAll,
-  clone: clone
+  clone: clone,
 };
 
 module.exports = objectUtils;

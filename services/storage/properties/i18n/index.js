@@ -1,5 +1,5 @@
 const languages = require('./languages');
-
+const objectUtils = require('./../../../../utils/object-utils')
 
 class I18nProperty {
 
@@ -41,6 +41,23 @@ class I18nProperty {
    */
   toBSON(){
     return this.value;
+  }
+
+  /**
+   * Конвертация в структуру для обновления свойств в mongodb
+   * Вместо полной перезаписи объекта, обновляются только измененные свойства i18n
+   * @param path {string} Путь на родительское свойство
+   * @param result {Object} Объект, в которой прописываются операции на изменение свойств
+   * @param clearUndefined {Boolean} Игнорировать или нет undefined свойства
+   * @returns {{$set: {}}} Возвращается аргумент result
+   */
+  toFlat(path = '', result = {}, clearUndefined = false){
+    for (const [lang, text] of Object.entries(this.value)) {
+      if (!clearUndefined || typeof text !== 'undefined') {
+        result[path ? `${path}.${lang}` : lang] = text;
+      }
+    }
+    return result;
   }
 
   /**
