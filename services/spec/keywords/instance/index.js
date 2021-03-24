@@ -1,5 +1,4 @@
-//const Ajv = require('ajv').default;
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 
 /**
  * Если значение не соответствует указанному классу (конструктору), то создаётся новый экземпляр.
@@ -13,31 +12,15 @@ const keywordMaker = function(spec, services){
   return {
     keyword: 'instance',
     modifying: true,
-    compile: (schema, parentSchema) => {
-      return function (data, {dataPath, parentData, parentDataProperty, rootData}) {
-        const constructor = keywordMaker.CLASS_NAMES[schema.name] || keywordMaker.CLASS_NAMES[schema];
-        if (!constructor) {
+    compile: (schema) => {
+      return function (data, {dataPath, rootData}) {
+        const context = this;
+        try{
+          mc.utils.set(rootData, dataPath, keywordMaker.exe(data, schema, context.session), false, '/');
+          return true;
+        } catch (e){
           return false;
         }
-        // Замена пустой строки или 'null' на null, если это допускается классом
-        if (schema.emptyToNull && (data === 'null' || data === '')) {
-          data = null;
-        }
-        // Замена значения на null, если конструктор класса не принимает null
-        if (data === null && !schema.createWithNull) {
-          utils.set(rootData, dataPath, null, false, '/');
-          return true;
-        }
-        // Создание экземпляра, если значение ещё не является им
-        if (!(data instanceof constructor)) {
-          data = new constructor(data);
-          utils.set(rootData, dataPath, data, false, '/');
-        }
-        // Если есть опции и метод опций у класса
-        if (schema.options && (typeof data.setOptions === 'function')) {
-          data.setOptions(schema.options);
-        }
-        return true;
       };
     },
     errors: 'full',
@@ -52,7 +35,7 @@ const keywordMaker = function(spec, services){
           type: 'object',
           additionalProperties: true,
           default: {},
-          description: 'Опции для экземпляра, если у него есть метод setOptions()'
+          description: 'Опции для экземпляра'
         },
       },
     },
@@ -66,5 +49,34 @@ const keywordMaker = function(spec, services){
 keywordMaker.CLASS_NAMES = {
   'Date': Date,
 };
+
+/**
+ * Преобразование в экземпляр класса
+ * Вынесено в отдельную функцию, чтобы использовать отдельно от валидации
+ * (Отдельно используется в storage/model для преобразования данных после выборки из базы данных до применения схем view)
+ * @param value
+ * @param schema
+ * @param session
+ * @returns {null|*}
+ */
+keywordMaker.exe = function (value, schema, session = {}){
+  const constructor = keywordMaker.CLASS_NAMES[schema.name] || keywordMaker.CLASS_NAMES[schema];
+  if (!constructor) {
+    throw new Error('Неизвестный конструктор');
+  }
+  // Замена пустой строки или 'null' на null, если это допускается классом
+  if (schema.emptyToNull && (value === 'null' || value === '')) {
+    value = null;
+  }
+  // Замена значения на null, если конструктор класса не принимает null
+  if (value === null && !schema.createWithNull) {
+    return value;
+  }
+  // Создание экземпляра, если значение ещё не является им
+  if (!(value instanceof constructor)) {
+    value = new constructor({value, session, options: schema.options});
+  }
+  return value;
+}
 
 module.exports = keywordMaker;

@@ -1,4 +1,4 @@
-const any = require('./../any');
+const custom = require('../custom');
 /**
  * Массив
  * @param [maxItems] {number} Максимальное длина массива
@@ -35,7 +35,7 @@ module.exports = function ({
                              defaults,
                              ...other
                            }) {
-  let result = any({type: 'array', description, enums, constant, examples, errors, defaults, ...other});
+  let result = custom({type: 'array', description, enums, constant, examples, errors, defaults, ...other});
   if (maxItems) {
     result.maxItems = maxItems;
   }

@@ -52,7 +52,7 @@ class Spec {
       tags: [], // Теги для группировки роутеров
       externalDocs: {},
     };
-
+    this.keywords = {};
     this.trees = {};
   }
 
@@ -120,7 +120,8 @@ class Spec {
     if (!options.keyword) {
       options.keyword = name;
     }
-    this.validator.addKeyword(options);
+    this.keywords[name] = options;
+    this.validator.addKeyword(this.keywords[name]);
   }
 
   /**
@@ -129,6 +130,10 @@ class Spec {
    */
   setKeywordInstanceClass(construct) {
     require('./keywords/instance').CLASS_NAMES[construct.name] = construct;
+  }
+
+  exeKeywordInstance(data, dataSchema){
+    return require('./keywords/instance').exe(data, dataSchema);
   }
 
   /**

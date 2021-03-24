@@ -1,4 +1,4 @@
-module.exports.any = require('./any');
+module.exports.custom = require('./custom');
 module.exports.boolean = require('./boolean');
 module.exports.string = require('./string');
 module.exports.number = require('./number');

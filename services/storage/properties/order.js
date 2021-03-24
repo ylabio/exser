@@ -1,46 +1,26 @@
 const mc = require('merge-change');
+const Property = require('./property');
 
-class OrderProperty {
+class OrderProperty extends Property{
 
-  constructor(value = 'max') {
-    this.value = value;
-    this.options = {
-      /**
-       * Названия свойств для формирования условия на множество объектов среди которых выполнять упорядочивание.
-       * Или функция, возвращающая условие поиска (filter) в формате mongodb
-       */
-      scope: []
-    }
-    this.needBeforeSave = true;
-    this.needAfterSave = true;
+  constructor({value = 'max', options, session}) {
+    super({
+      value,
+      session,
+      options: mc.patch({
+        /**
+         * Названия свойств для формирования условия на множество объектов среди которых выполнять упорядочивание.
+         * Или функция, возвращающая условие поиска (filter) в формате mongodb
+         */
+        scope: []
+      }, options)
+    });
   }
 
   setValue(value){
     this.value = value;
     this.needBeforeSave = true;
     this.needAfterSave = true;
-  }
-
-  /**
-   * Установка опций свойства
-   * @param options
-   * @returns {OrderProperty}
-   */
-  setOptions(options){
-    this.options = mc.patch(this.options, options);
-    return this;
-  }
-
-  valueOf(){
-    return this.value;
-  }
-
-  toJSON(){
-    return this.value;
-  }
-
-  toBSON(){
-    return this.value;
   }
 
   getScope({object}){
@@ -53,6 +33,7 @@ class OrderProperty {
 
   /**
    * Подготовка свойства перед сохранением объекта
+   * Вычисление реального порядкового значения, если указаны спец коды.
    * @param session
    * @param object
    * @param objectPrev
@@ -93,6 +74,17 @@ class OrderProperty {
     this.needBeforeSave = false;
   }
 
+  /**
+   * Сдвиги порядкового значения у других объектов
+   * @param session
+   * @param object
+   * @param objectPrev
+   * @param path
+   * @param prev
+   * @param model
+   * @param services
+   * @returns {Promise<void>}
+   */
   async afterSave({session, object, objectPrev, path, prev, model, services}){
     if (this.needAfterSave) {
       const prop = path.replace('/', '.');

@@ -21,13 +21,14 @@ module.exports = function ({
                            }) {
   let result = {
     anyOf: [
+      {is: 'OrderProperty', errors: {is: false}},
       {
         type: 'string',
         enum: ['min', '++', '--', 'max'],
         description: 'Относительная установка',
         errors: {type: false, enum: false}
       },
-      {type: 'integer', errors: {type: false, minimum: false}},
+      {type: 'integer', errors: {type: false, minimum: false}}
     ],
     instance: {name: 'OrderProperty', emptyToNull: true, createWithNull: true, options: {scope}},
     title: description,

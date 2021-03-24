@@ -1,4 +1,4 @@
-const any = require('./../any');
+const custom = require('../custom');
 /**
  * Булево значение
  * @param [description] {string} Краткое описание
@@ -15,5 +15,5 @@ module.exports = function ({
                              defaults,
                              ...other
                            }) {
-  return  any({type: 'boolean', description, constant, errors, defaults, ...other});
+  return  custom({type: 'boolean', description, constant, errors, defaults, ...other});
 };

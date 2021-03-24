@@ -1,6 +1,7 @@
 const MongoDB = require('mongodb');
 const ObjectID = MongoDB.ObjectID;
 const {queryUtils, objectUtils, stringUtils} = require('../../utils');
+const mc = require('merge-change');
 
 class Storage {
 
@@ -195,6 +196,7 @@ class Storage {
    * @param empty
    * @param session
    * @returns {Promise<*>}
+   * @deprecated
    */
   async loadByFields({object, fields, empty = true, session}) {
     if (typeof fields === 'string') {
@@ -206,17 +208,17 @@ class Storage {
     const keys = Object.keys(fields);
     let result = {};
     if ('*' in fields) {
-      result = objectUtils.clone(object);
+      result = object;//mc.merge(object, {});
     }
 
     for (let key of keys) {
       let rel, link;
       if (key in object) {
         try {
-          if (Array.isArray(object[key])) {
+          const type = mc.utils.type(object[key]);
+          if (type === 'Array') {
             result[key] = [];
             for (let item of object[key]) {
-
               link = await this.loadByFields({
                 object: item,
                 fields: fields[key],
@@ -233,13 +235,14 @@ class Storage {
                 result[key].push(link);
               }
             }
-          } else if (typeof object[key] === 'object' && typeof fields[key] === 'object') {
+          } else if (type === 'Object' && mc.utils.type(fields[key]) === 'Object') {
             link = await this.loadByFields({
               object: object[key],
               fields: fields[key],
               empty: false,
               session,
             });
+            // @todo PropertyRel
             if (object[key]._id && (fields[key]['*'] || Object.keys(fields[key]).length > 0)) {
               result[key] = Object.assign(
                 await this.loadRel({rel: object[key], fields: fields[key], session}),
@@ -249,11 +252,7 @@ class Storage {
               result[key] = link;
             }
           } else {
-            if (object[key] && object[key]._id) {
-              result[key] = {_id: object[key]._id};
-            } else {
-              result[key] = object[key];
-            }
+            result[key] = object[key];
           }
         } catch (e) {
           console.log(key, object, fields);
@@ -263,9 +262,9 @@ class Storage {
         result[key] = null;
       }
     }
-    if (!result._id && object._id) {
-      result._id = object._id;
-    }
+    // if (!result._id && object._id) {
+    //   result._id = object._id;
+    // }
     return result;
   }
 
@@ -275,6 +274,7 @@ class Storage {
    * @param fields
    * @param session
    * @returns {Promise<*>}
+   * @deprecated
    */
   async loadRel({rel, fields, session}) {
     try {
@@ -339,6 +339,9 @@ class Storage {
     return result;
   }
 
+  /**
+   * @deprecated
+   */
   getRootSession() {
     return {
       user: {

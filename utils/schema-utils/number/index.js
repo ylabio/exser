@@ -1,4 +1,4 @@
-const any = require('./../any');
+const custom = require('../custom');
 /**
  * Числовое значение
  * @param [minimum] {number} Меньше или равно
@@ -29,7 +29,7 @@ module.exports = function ({
                              defaults,
                              ...other
                            }) {
-  let result = any({type: 'number', description, enums, constant, examples, errors, defaults, ...other});
+  let result = custom({type: 'number', description, enums, constant, examples, errors, defaults, ...other});
   if (minimum) {
     result.minimum = minimum;
   }

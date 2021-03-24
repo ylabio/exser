@@ -1,7 +1,8 @@
 class RelProperty {
 
-  constructor(value, options) {
-    this.value = value;
+  constructor({value, options}) {
+    this.setOptions(options);
+    this.setValue(value);
   }
 
   setValue(value){

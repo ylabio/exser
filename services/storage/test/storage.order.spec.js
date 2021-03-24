@@ -31,8 +31,8 @@ describe('Storage.order', () => {
     ];
     let index = 1;
     for (const body of bodyList) {
-      const result = await s.objects.createOne({body, session: data.session, view: false});
-      expect(utils.plain(result)).toMatchObject({
+      const result = await s.objects.createOne({body, session: data.session});
+      expect(utils.toPlain(result)).toMatchObject({
         _type: 'test',
         name: `Test${index}`,
         order1: index,
@@ -49,14 +49,14 @@ describe('Storage.order', () => {
       {name: 'Test4', order1: '--'},
     ];
     for (const body of bodyList) {
-      const result = await s.objects.createOne({body, session: data.session, view: false});
+      const result = await s.objects.createOne({body, session: data.session});
     }
     //
-    let list = await s.objects.getList({sort: {'_id': 1}, view: false});
+    let list = await s.objects.findMany({sort: {'_id': 1}});
     let indexRev = 1;
     let index = 1;
-    for (const item of list.items) {
-      expect(utils.plain(item)).toMatchObject({
+    for (const item of list) {
+      expect(utils.toPlain(item)).toMatchObject({
         name: `Test${index}`,
         order1: indexRev,
       });
@@ -77,12 +77,12 @@ describe('Storage.order', () => {
       {name: 'Test8', order1: -4},
     ];
     for (const body of bodyList) {
-      await s.objects.createOne({body, session: data.session, view: false});
+      await s.objects.createOne({body, session: data.session});
     }
     // data from mongo
-    let list = await s.objects.getList({sort: {'_id': 1}, view: false});
+    let list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.plain(list.items[i])).toMatchObject({
+      expect(utils.toPlain(list[i])).toMatchObject({
         name: bodyList[i].name,
         order1: bodyList[i].order1,
       });
@@ -101,14 +101,72 @@ describe('Storage.order', () => {
       {name: 'Test8', order1: -2, _expect: -2},
     ];
     for (const body of bodyList) {
-      await s.objects.createOne({body, session: data.session, view: false});
+      await s.objects.createOne({body, session: data.session});
     }
     // data from mongo
-    let list = await s.objects.getList({sort: {'_id': 1}, view: false});
+    let list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.plain(list.items[i])).toMatchObject({
+      expect(utils.toPlain(list[i])).toMatchObject({
         name: bodyList[i].name,
         order1: bodyList[i]._expect,
+      });
+    }
+  });
+
+
+  test('change order', async () => {
+    // init
+    const bodyList = [
+      {name: 'Test1', order1: 'max', _expect: 1},
+      {name: 'Test2', order1: 'max', _expect: 2},
+      {name: 'Test3', order1: 'max', _expect: 3},
+      {name: 'Test4', order1: 'max', _expect: 4},
+      {name: 'Test5', order1: 'max', _expect: 5},
+      {name: 'Test6', order1: 'max', _expect: 6},
+      {name: 'Test7', order1: 'max', _expect: 7},
+      {name: 'Test8', order1: 'max', _expect: 8},
+    ];
+    for (const body of bodyList) {
+      await s.objects.createOne({body, session: data.session});
+    }
+    // test init
+    let list = await s.objects.findMany({sort: {'_id': 1}});
+    for (let i = 0; i < bodyList.length; i++) {
+      expect(utils.toPlain(list[i])).toMatchObject({
+        name: bodyList[i].name,
+        order1: bodyList[i]._expect,
+      });
+    }
+
+    // Move Test2 to max
+    const changedTest2 = await s.objects.updateOne({
+      filter: {name: 'Test2'},
+      body: {order1: 8},
+      session: data.session,
+    });
+
+    expect(utils.toPlain(changedTest2)).toMatchObject({
+      name: 'Test2',
+      order1: 8,
+    });
+
+    const need = [
+      {name: 'Test1', order1: 1},
+      {name: 'Test2', order1: 8},
+      {name: 'Test3', order1: 2},
+      {name: 'Test4', order1: 3},
+      {name: 'Test5', order1: 4},
+      {name: 'Test6', order1: 5},
+      {name: 'Test7', order1: 6},
+      {name: 'Test8', order1: 7},
+    ];
+
+    // test all
+    list = await s.objects.findMany({sort: {'_id': 1}});
+    for (let i = 0; i < bodyList.length; i++) {
+      expect(utils.toPlain(list[i])).toMatchObject({
+        name: need[i].name,
+        order1: need[i].order1,
       });
     }
   });

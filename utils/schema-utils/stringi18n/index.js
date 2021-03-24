@@ -11,6 +11,7 @@ const string = require('./../string');
  * @param [examples] {Array.<number>} Примеры значений
  * @param [errors] {Object.<string>} Тексты ошибок на ключевые слова. Например {type: "Неверный тип", maxLength: "Слишком длинная строка"}
  * @param [defaults] {string} Значение по умолчанию. Алиас для default.
+ * @param defaultLang {string} Код языка по умолчанию из @exser/services/storage/properties/i18n/languages.js
  * @param [other] {...*} Другие параметры поддерживаемые JSONSchema для описания строки
  * @returns {object}
  * @returns {Object}
@@ -26,9 +27,10 @@ module.exports = function ({
                              examples,
                              errors,
                              defaults,
+                             defaultLang = 'ru',
                              ...other
                            }) {
-  let s = string({
+  let typeString = string({
     minLength,
     maxLength,
     pattern,
@@ -40,20 +42,22 @@ module.exports = function ({
   });
 
   let result = {
-    anyOf: [s, {type: 'object', patternProperties: {'^.*$': s}}],
-    instance: {name: 'I18nProperty', emptyToNull: false, createWithNull: true, options: {}},
+    anyOf: [
+      {is: 'I18nProperty', errors: {is: false}}, // Сперва проверка принадлежности классу, чтобы валидатор не удалил свойства в нём из-за других вариантов правил
+      typeString, // Значение на текущем (в сессии) языке
+      {type: 'object', patternProperties: {'^[a-z]{2}(-[a-zA-Z-]+)?$': typeString}, additionalProperties: false}, // Если передан объект с множеством языков Варианты кодов: ru, en-US, ha-Latn-GH
+    ],
+    instance: {name: 'I18nProperty', emptyToNull: false, createWithNull: true, options: {default: defaultLang}}, // Конвертация в экземпляр I18nProperty
+    errors: {
+      anyOf: {message: 'Incorrect type (String, Object<string>)', rule: 'type'}, // Обобщение всех ошибок из anyOf
+      ...errors,
+    },
     description,
   };
   // if (empty){
   //   result.anyOf.unshift({
   //     enum: ['', null, 'null'], errors: {enum: false}
   //   })
-  // }
-  // if (enums) {
-  //   result.enums = enums;
-  // }
-  // if (constant) {
-  //   result.constant = constant;
   // }
   if (examples) {
     result.examples = examples;

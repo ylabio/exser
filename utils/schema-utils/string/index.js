@@ -1,4 +1,4 @@
-const any = require('./../any');
+const custom = require('../custom');
 /**
  * Строковое значение
  * @param [minLength] {number} Минимальная длина
@@ -27,7 +27,7 @@ module.exports = function ({
                              defaults,
                              ...other
                            }) {
-  let result = any({type: 'string', description, enums, constant, examples, errors, defaults, ...other});
+  let result = custom({type: 'string', description, enums, constant, examples, errors, defaults, ...other});
   if (minLength) {
     result.minLength = minLength;
   }

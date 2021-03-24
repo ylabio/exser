@@ -1,4 +1,4 @@
-const swaggerUi = require('swagger-ui-express');
+const swaggerUi = require('swagger-ui-express-fresh');
 
 module.exports = async (router, services) => {
 

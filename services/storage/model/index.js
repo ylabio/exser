@@ -4,6 +4,7 @@ const {errors, queryUtils, objectUtils, stringUtils, schemaUtils} = require('../
 const deepEqual = require('deep-equal');
 const type = require('../../../utils/schema-utils');
 const mc = require('merge-change');
+const CalculateProperty = require('./../properties/calculate');
 
 class Model {
 
@@ -34,22 +35,28 @@ class Model {
     this.storage = await this.services.getStorage();
 
     this._define = this.define();
-    this._schemes = await this.schemes();
+    // @deprecated
+    //this._schemes = await this.schemes();
     this._links = this.spec.findLinks(this._define, '', this.type());
     // {Array<String>} Названия ключей, которые запомнить в метаданные. Указываются в порядке обработки
     //this._metaKeys = ['instance'];
     this._propertiesWithInstance = this.storage.findPropertiesWithInstance(this._define, this.type());
     //console.log(this._propertiesWithInstance);
+    //console.log(this._propertiesWithInstance);
     this.native = await this.storage.define(this.type(), this._define, this);
 
     // Схемы в спецификацию
+    this.spec.set(`#/components/schemas/${this.type()}`, this._define);
     // if (this._define.schema) {
     //   this.spec.schemas(this.type(), this._define.schema);
     // }
-    const keys = Object.keys(this._schemes);
-    for (let key of keys) {
-      this.spec.set(`#/components/schemas/${this.type()}.${key}`, this._schemes[key]);
-    }
+    // @deprecated Нужно регать схему модели
+    // const keys = Object.keys(this._schemes);
+    // for (let key of keys) {
+    //   this.spec.set(`#/components/schemas/${this.type()}.${key}`, this._schemes[key]);
+    // }
+
+
     // if (Object.keys(this._links).length) {
     //   console.log(this.type(), this._links);
     // }
@@ -67,7 +74,7 @@ class Model {
       collection: this.type(), // название коллекции в монге
       indexes: {
         order: [{'order': 1}, {}], // нельзя делать уникальным из-за сдвигов при упорядочивании
-        key: [{_key: 1}, {'unique': true, partialFilterExpression: {_key: {$exists: true}}}]
+        key: [{_key: 1}, {'unique': true, partialFilterExpression: {_key: {$exists: true}}}],
       },
       properties: {
         _id: type.objectId({description: 'Идентификатор ObjectId'}),
@@ -83,160 +90,148 @@ class Model {
     });
   }
 
-  /**
-   * Схемы для валидации или фильтра. Применются в методах коллекции
-   * @returns {{}}
-   */
-  schemes() {
-    return {
-      // Схема создания
-      create: this.spec.extend(this._define, {
-        title: `${this._define.title}. Создание`,
-        properties: {
-          $unset: [/*'_type',*/ 'dateCreate', 'dateUpdate', 'isDeleted', 'author'],
-        },
-        $unset: ['collection', 'indexes']
-      }),
-      // Схема редактирования
-      update: this.spec.extend(this._define, {
-          title: `${this._define.title}. Изменение`,
-          properties: {
-            $unset: [
-              '_id', '_type', 'dateCreate', 'dateUpdate', 'isNew', 'author'
-            ]
-          },
-          $set: {
-            required: []
-          },
-        $unset: ['collection', 'indexes'],
-          $mode: 'update'
-        }
-      ),
-      // Схема просмотра
-      view: this.spec.extend(this._define, {
-        title: `${this._define.title}. Просмотр`,
-        properties: {
-          $unset: []
-        },
-        $set: {
-          required: []
-        },
-        $unset: ['collection', 'indexes'],
-        $mode: 'view'
-      }),
-      // Схема просмотра для спсика
-      viewList: {
-        title: `${this._define.title}. Просмотр списка`,
-        properties: {
-          // используем схему view для каждого объекта в списке
-          items: type.array({items: {$ref: `#/components/schemas/${this.type()}.view`}}),
-          count: type.integer({description: 'Количество объектов без учёта limit и skip'})
-        }
-      },
-      // Схема для запроса на удаление (отметка признака удаления)
-      delete: this.spec.extend(this._define, {
-        title: `${this._define.title}. Удаление`,
-        //properties: {
-        // $leave: [
-        //   'isDeleted'
-        // ]
-        //},
-        $set: {
-          required: ['isDeleted']
-        },
-        $unset: ['collection', 'indexes'],
-      }),
-      // Схема для выборки свойств прототипа для создания нового объекта
-      proto: this.spec.extend(this._define, {
-        title: `${this._define.title}. Прототипирование`,
-        properties: {
-          $unset: ['_id', '_key', 'dateCreate', 'dateUpdate', 'isNew', 'isDeleted', 'proto']
-        },
-        $set: {
-          required: []
-        },
-        $unset: ['collection', 'indexes'],
-        $mode: 'view'
-      })
-    };
-  }
+  // /**
+  //  * Схемы для валидации или фильтра. Применются в методах коллекции
+  //  * @returns {{}}
+  //  * // @deprecated
+  //  */
+  // schemes() {
+  //   return {
+  //     // Схема создания
+  //     create: this.spec.extend(this._define, {
+  //       title: `${this._define.title}. Создание`,
+  //       properties: {
+  //         $unset: [/*'_type',*/ 'dateCreate', 'dateUpdate', 'isDeleted', 'author'],
+  //       },
+  //       $unset: ['collection', 'indexes']
+  //     }),
+  //     // Схема редактирования
+  //     update: this.spec.extend(this._define, {
+  //         title: `${this._define.title}. Изменение`,
+  //         properties: {
+  //           $unset: [
+  //             '_id', '_type', 'dateCreate', 'dateUpdate', 'isNew', 'author'
+  //           ]
+  //         },
+  //         $set: {
+  //           required: []
+  //         },
+  //       $unset: ['collection', 'indexes'],
+  //         $mode: 'update'
+  //       }
+  //     ),
+  //     // Схема просмотра
+  //     view: this.spec.extend(this._define, {
+  //       title: `${this._define.title}. Просмотр`,
+  //       properties: {
+  //         $unset: []
+  //       },
+  //       $set: {
+  //         required: []
+  //       },
+  //       $unset: ['collection', 'indexes'],
+  //       $mode: 'view'
+  //     }),
+  //     // Схема просмотра для спсика
+  //     viewList: {
+  //       title: `${this._define.title}. Просмотр списка`,
+  //       properties: {
+  //         // используем схему view для каждого объекта в списке
+  //         items: type.array({items: {$ref: `#/components/schemas/${this.type()}.view`}}),
+  //         count: type.integer({description: 'Количество объектов без учёта limit и skip'})
+  //       }
+  //     },
+  //     // Схема для запроса на удаление (отметка признака удаления)
+  //     delete: this.spec.extend(this._define, {
+  //       title: `${this._define.title}. Удаление`,
+  //       //properties: {
+  //       // $leave: [
+  //       //   'isDeleted'
+  //       // ]
+  //       //},
+  //       $set: {
+  //         required: ['isDeleted']
+  //       },
+  //       $unset: ['collection', 'indexes'],
+  //     }),
+  //     // Схема для выборки свойств прототипа для создания нового объекта
+  //     proto: this.spec.extend(this._define, {
+  //       title: `${this._define.title}. Прототипирование`,
+  //       properties: {
+  //         $unset: ['_id', '_key', 'dateCreate', 'dateUpdate', 'isNew', 'isDeleted', 'proto']
+  //       },
+  //       $set: {
+  //         required: []
+  //       },
+  //       $unset: ['collection', 'indexes'],
+  //       $mode: 'view'
+  //     })
+  //   };
+  // }
 
   /**
    * Выбор одного объекта
    * @param filter
-   * @param view Применить схему валидации view (фильтровать) для найденного объекта
-   * @param fields Какие поля выбрать, если view == true (с учётом схему валидации)
-   * @param session Объект сессии с авторизованным юзером, языком
-   * @param throwNotFound Исключение, если объект не найден
-   * @returns {Promise.<Object>}
+   * @param session
+   * @returns {Promise<*>}
    */
-  async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true}) {
-    const pFields = queryUtils.parseFields(fields) || fields || {};
-    let result = await this.native.findOne(filter);
-    if (throwNotFound && (!result || (view && !('isDeleted' in pFields) && result.isDeleted))) {
-      throw new errors.NotFound({}, 'Not found');
+  async findOne({filter, session}) {
+    return this.restoreInstances(
+      await this.native.findOne(filter),
+    );
+  }
+
+  /**
+   * Выбор списка объектов
+   * @param filter
+   * @param limit
+   * @param skip
+   * @param sort
+   * @param session
+   * @param callback
+   * @returns {Promise<[]>}
+   */
+  async findMany({filter, limit = 10, skip = 0, sort = {}, session, callback}) {
+    const cursor = await this.native.find(filter).sort(sort).skip(parseInt(skip) || 0);
+    if (limit !== Infinity) {
+      cursor.limit(parseInt(limit) || 10);
     }
-    if (result && view) {
-      const isDeleted = result.isDeleted;
-      result = await this.view(result, {fields: pFields, session, view});
-      if (isDeleted){
-        result.isDeleted = true;
+    let i = 0;
+    let object;
+    let result = [];
+    for await (const item of cursor) {
+      object = this.restoreInstances(item);
+      if (callback) {
+        object = await callback(object, i);
+        if (object) result.push(object);
+      } else {
+        result.push(object);
       }
+
+      i++;
     }
     return result;
   }
 
   /**
-   * Выбор списка
+   * Выбор списка объектов с вычислением различий с предыдущей выборкой
+   * @param key Ключ выборки для последующего сравнения в повторных выборках
    * @param filter
-   * @param sort
    * @param limit
    * @param skip
-   * @param view Отфильтровать ответ в соответсвии со схемой отображения
-   * @param fields
+   * @param sort
    * @param session
-   * @param isDeleted
-   * @param returnItems Вернуть массив items
-   * @returns {Promise.<{items, count}>}
+   * @param callback
+   * @returns {Promise<{add: null, change: null, items: null, remove: null}>}
    */
-  async getList({
-                  filter = {}, sort = {}, limit = 10, skip = 0,
-                  view = true, fields = {'*': 1},
-                  session, isDeleted = true, returnItems = false
-                }) {
-    if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
-      filter = Object.assign({isDeleted: false}, filter);
-    }
-    const query = await this.native.find(filter)
-      .sort(sort)
-      .skip(parseInt(skip) || 0);
-    if (limit !== '*') {
-      query.limit(parseInt(limit) || 10);
-    }
-
-    let result = {
-      items: await query.toArray()
-    };
-
-    if (view) {
-      result = await this.viewList(result, {filter, fields, session, view});
-    }
-
-    return returnItems ? result.items : result;
-  }
-
-  async getListChanges({key, ...params}) {
-    const current = await this.getList({...params});
+  async findChanges({key, filter, limit = 10, skip = 0, sort = {}, session, callback}) {
+    const items = await this.findMany({filter, limit, skip, sort, session, callback});
     let result = {
       add: null,
       remove: null,
       change: null,
-      items: null
+      items: null,
     };
-    let items = Array.isArray(current) ? current : current.items;
-    if ('count' in current) {
-      result.count = current.count;
-    }
     if (!this.changes[key]) {
       result.items = items;
     } else {
@@ -263,7 +258,7 @@ class Model {
     this.changes[key] = {
       items: items,
       index: {},
-      date: (new Date()).getTime()
+      date: (new Date()).getTime(),
     };
     items.forEach((item, index) => {
       this.changes[key].index[item._id] = index;
@@ -281,22 +276,131 @@ class Model {
     return result;
   }
 
+  // /**
+  //  * Выбор одного объекта
+  //  * @param filter
+  //  * @param view Применить схему валидации view (фильтровать) для найденного объекта
+  //  * @param fields Какие поля выбрать, если view == true (с учётом схему валидации)
+  //  * @param session Объект сессии с авторизованным юзером, языком
+  //  * @param throwNotFound Исключение, если объект не найден
+  //  * @returns {Promise.<Object>}
+  //  */
+  // async getOne({filter = {}, view = true, fields = {'*': 1}, session, throwNotFound = true}) {
+  //   const pFields = queryUtils.parseFields(fields) || fields || {};
+  //   let result = await this.native.findOne(filter);
+  //   if (throwNotFound && (!result || (view && !('isDeleted' in pFields) && result.isDeleted))) {
+  //     throw new errors.NotFound({}, 'Not found');
+  //   }
+  //   return await this.view(result, {fields: pFields, session, view});
+  // }
+
+  // /**
+  //  * Выбор списка
+  //  * @param filter
+  //  * @param sort
+  //  * @param limit
+  //  * @param skip
+  //  * @param view Отфильтровать ответ в соответсвии со схемой отображения
+  //  * @param fields
+  //  * @param session
+  //  * @param isDeleted
+  //  * @param returnItems Вернуть массив items
+  //  * @returns {Promise.<{items, count}>}
+  //  */
+  // async getList({
+  //                 filter = {}, sort = {}, limit = 10, skip = 0,
+  //                 view = true, fields = {'*': 1},
+  //                 session, isDeleted = true, returnItems = false
+  //               }) {
+  //   if (!(queryUtils.inFields(fields, 'isDeleted', false) || queryUtils.inFields(fields, 'items.isDeleted', false))) {
+  //     filter = Object.assign({isDeleted: false}, filter);
+  //   }
+  //   const query = await this.native.find(filter)
+  //     .sort(sort)
+  //     .skip(parseInt(skip) || 0);
+  //   if (limit !== '*') {
+  //     query.limit(parseInt(limit) || 10);
+  //   }
+  //
+  //   let result = {
+  //     items: await query.toArray()
+  //   };
+  //
+  //   if (view) {
+  //     result = await this.viewList(result, {filter, fields, session, view});
+  //   }
+  //
+  //   return returnItems ? result.items : result;
+  // }
+
+  // async getListChanges({key, ...params}) {
+  //   const current = await this.getList({...params});
+  //   let result = {
+  //     add: null,
+  //     remove: null,
+  //     change: null,
+  //     items: null
+  //   };
+  //   let items = Array.isArray(current) ? current : current.items;
+  //   if ('count' in current) {
+  //     result.count = current.count;
+  //   }
+  //   if (!this.changes[key]) {
+  //     result.items = items;
+  //   } else {
+  //     const prevItems = this.changes[key].items;
+  //     const prevIndex = this.changes[key].index;
+  //     result.add = [];
+  //     result.change = [];
+  //     // Новые и измененные объекты
+  //     for (const item of items) {
+  //       if (!(item._id in prevIndex)) {
+  //         result.add.push(item);
+  //       } else if (!deepEqual(item, prevItems[prevIndex[item._id]])) {
+  //         result.change.push(item);
+  //       }
+  //       delete prevIndex[item._id];
+  //     }
+  //     // Отсутствующие объекты
+  //     const delIds = Object.keys(prevIndex);
+  //     result.remove = [];
+  //     for (const id of delIds) {
+  //       result.remove.push(prevItems[prevIndex[id]]);
+  //     }
+  //   }
+  //   this.changes[key] = {
+  //     items: items,
+  //     index: {},
+  //     date: (new Date()).getTime()
+  //   };
+  //   items.forEach((item, index) => {
+  //     this.changes[key].index[item._id] = index;
+  //   });
+  //   // Чистка старых данных
+  //   if (Math.random() > 0.5) {
+  //     const badDate = (new Date()).getTime() - this.config.changes.lifetime;
+  //     const changeKeys = Object.keys(this.changes);
+  //     for (const changeKey of changeKeys) {
+  //       if (this.changes[changeKey].date < badDate) {
+  //         delete this.changes[changeKey];
+  //       }
+  //     }
+  //   }
+  //   return result;
+  // }
+
   /**
    * Создание одного объекта
    * @param body {object} Объект для сохранения в базу
-   * @param [view] {boolean} Выполнять ли фильтрацию результат схемой view? Используется для вывода в апи.
    * @param [validate] {function} Кастомная функция валидации. Выполняется после базовой валидации по схеме
    * @param [prepare] {function} Кастомная функция инициализации свойств, не описанных схемой и не переданных в body
-   * @param [fields] {string|object} Какие свойства объекта вернуть, в том числе выборка отношений. Формат: "field1, field2(subfield)"
    * @param [session] {object} Объект сессии
-   * @param [schema] {string} Название схемы по которой валидировать body
-   * @param [force] {function} Режим формированного сохранения
    * @returns {Promise<Object>}
    */
-  async createOne({body, validate, prepare, fields = '*', view = true, session = {}, schema = 'create', force = false}) {
+  async createOne({body, validate, prepare, session = {}}) {
     try {
       let object = mc.merge(body, {});
-      if (!body._type){
+      if (!body._type) {
         body._type = this.type();
       }
       // Прототипирование
@@ -368,7 +472,7 @@ class Model {
       // }
 
       // Валидация по схеме
-      let objectValid = await this.validate({object, schema, session});
+      let objectValid = await this.validate({object, session});
 
       // Инициализация обязательных свойств, отсутствующих в схеме создания
       objectValid._id = object._id ? ObjectID(object._id) : new ObjectID();
@@ -380,11 +484,16 @@ class Model {
       objectValid.dateUpdate = 'dateUpdate' in objectValid ? objectValid.dateUpdate : moment().toDate();
 
       // Обработка свойств-экземпляров перед кастомной валидацией и сохранением объекта
-      await this.processPropertiesWithInstance({method: 'beforeSave', value: objectValid, object: objectValid, session});
+      await this.processPropertiesWithInstance({
+        method: 'beforeSave',
+        value: objectValid,
+        object: objectValid,
+        session,
+      });
 
       // Кастомная валидация
-      if (validate){
-        objectValid = validate({object: objectValid, source: object, schema, session, target: 'js'});
+      if (validate) {
+        objectValid = validate({object: objectValid, source: object, session});
       }
 
       // Подготовка свойств-экземпляров
@@ -495,7 +604,7 @@ class Model {
       // }
 
       // Подготовка на вывод
-      return view ? await this.view(result, {fields, session, view}) : result;
+      return this.restoreInstances(object);
     } catch (e) {
       throw errors.convert(e);
     }
@@ -505,56 +614,55 @@ class Model {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({id, filter, body, view = true, validate, prepare, fields = {'*': 1}, session, prev, schema = 'update', force = false}) {
-    let object = mc.merge(body, {});
+  async updateOne({filter, body, validate, prepare, session, prev}) {
     // Текущий объект в базе
     if (!prev) {
-      if (id){
-        filter = {_id: new ObjectID(id)};
-      }
-      if (filter) {
-        prev = await this.native.findOne(filter);
-      }
+      prev = await this.findOne({filter, session});
     }
-    if (!prev){
+    if (!prev) {
       throw new errors.NotFound({filter}, 'Not found for update');
     }
     let _id = prev._id;
     try {
-
-
-      let objectValid = await this.validate({object, schema, session});
-
+      let object = mc.merge(prev, body);
+      let objectValid = await this.validate({object, session});
       objectValid.dateUpdate = new Date();
       objectValid.isNew = false;
 
-      await this.processPropertiesWithInstance({method: 'beforeSave', value: objectValid, object: objectValid, prev, objectPrev: prev, session});
+      await this.processPropertiesWithInstance({
+        method: 'beforeSave',
+        value: objectValid,
+        object: objectValid,
+        prev,
+        objectPrev: prev,
+        session,
+      });
 
       // Кастомная валидация
-      if (validate){
-        objectValid = validate({object: objectValid, prev, source: object, schema, session});
+      if (validate) {
+        objectValid = validate({object: objectValid, prev, source: object, session});
       }
 
-      // Конвертация в плоский объект
-      let operation = objectUtils.convertToOperation(objectValid, true);
+      // Вычисление отличий
+      let diff = mc.utils.diff(prev, objectValid);
 
+      // Запись отличий
+      let operation = this.operationToMongo(diff);
       let result = await this.native.updateOne({_id}, operation);
 
-      if (result.matchedCount) {
-        const objectNew = await this.getOne({filter: {_id}, view: false, fields, session});
+      // Обработка свойств после сохранения
+      await this.processPropertiesWithInstance({
+        method: 'afterSave',
+        value: objectValid,
+        object: objectValid,
+        prev,
+        objectPrev: prev,
+        session,
+      });
 
-        await this.processPropertiesWithInstance({
-          method: 'afterSave',
-          value: objectNew, //objectValid,
-          object: objectNew, //objectValid,
-          prev,
-          objectPrev: prev,
-          session
-        });
+      // @todo Запись в историю (diff?)
 
-        // Подготовка на вывод
-        return view ? await this.view(objectNew, {fields, session, view}) : objectNew;
-      }
+      return objectValid;
 
       // // Валидация с возможностью переопредления
       // const validateDefault = (object) => this.validate({object, prev, schema, session, target: 'js'});
@@ -627,7 +735,7 @@ class Model {
       // }
       //
       // // Конвертация в плоский объект
-      // let $set = objectUtils.convertForSet(object, true);
+      //let $set = objectUtils.convertForSet(object, true);
       //
       // let result = await this.native.updateOne({_id}, {$set});
 
@@ -636,35 +744,35 @@ class Model {
 
         if (!force) {
           // Смещение order у других объектов, если меняем у текущего
-          if (objectNew.order > prevOrder) {
-            // свдиг вверх, чтобы освободить order снизу
-            await this.native.updateMany(this.orderScope(objectNew, {
-                _id: {$ne: objectNew._id},
-                order: {
-                  $gt: prevOrder,
-                  $lte: objectNew.order
-                },
-              }),
-              {$inc: {order: -1}, $set: {dateUpdate: moment().toDate()}});
-          } else if (objectNew.order < prevOrder) {
-            // сдвиг вниз, чтобы освободить order сверху
-            await this.native.updateMany(this.orderScope(objectNew, {
-              _id: {$ne: objectNew._id},
-              order: {
-                $gte: objectNew.order,
-                $lt: prevOrder
-              }
-            }), {$inc: {order: 1}, $set: {dateUpdate: moment().toDate()}});
-          }
+          // if (objectNew.order > prevOrder) {
+          //   // сдвиг вверх, чтобы освободить order снизу
+          //   await this.native.updateMany(this.orderScope(objectNew, {
+          //       _id: {$ne: objectNew._id},
+          //       order: {
+          //         $gt: prevOrder,
+          //         $lte: objectNew.order
+          //       },
+          //     }),
+          //     {$inc: {order: -1}, $set: {dateUpdate: moment().toDate()}});
+          // } else if (objectNew.order < prevOrder) {
+          //   // сдвиг вниз, чтобы освободить order сверху
+          //   await this.native.updateMany(this.orderScope(objectNew, {
+          //     _id: {$ne: objectNew._id},
+          //     order: {
+          //       $gte: objectNew.order,
+          //       $lt: prevOrder
+          //     }
+          //   }), {$inc: {order: 1}, $set: {dateUpdate: moment().toDate()}});
+          // }
 
           // Обновление обратных отношений
-          await this.saveLinks({
-            object: objectNew, // новый объект
-            path: '',
-            set: objectNew, // новый объект для рекурсивного обхода
-            setPrev: prev, // старый объект для рекурсивного обхода
-            changes: object // изменения
-          });
+          // await this.saveLinks({
+          //   object: objectNew, // новый объект
+          //   path: '',
+          //   set: objectNew, // новый объект для рекурсивного обхода
+          //   setPrev: prev, // старый объект для рекурсивного обхода
+          //   changes: object // изменения
+          // });
 
           // добавление записи в истории
           if (objectNew._type !== 'history') {
@@ -692,6 +800,25 @@ class Model {
     } catch (e) {
       throw errors.convert(e);
     }
+  }
+
+  /**
+   * Конвертация операций слияния merge-change в формат операций mongodb
+   * @param operation
+   * @returns {{$set: {}}}
+   */
+  operationToMongo(operation) {
+    let result = {$set: {}};
+    if (operation.$set) {
+      result.$set = operation.$set;
+    }
+    if (operation.$unset && operation.$unset.length) {
+      result.$unset = {};
+      for (let unset of operation.$unset) {
+        result.$unset[unset] = '';
+      }
+    }
+    return result;
   }
 
   /**
@@ -737,14 +864,23 @@ class Model {
    * @param view Отфильтровать ответ в соответсвии со схемой отображения
    * @returns {Promise.<Object>}
    */
-  async upsertOne({filter, body, view = true, fields = {'*': 1}, session, force = false, schemaCreate = 'create', schemaUpdate = 'update'}) {
+  async upsertOne({
+                    filter,
+                    body,
+                    view = true,
+                    fields = {'*': 1},
+                    session,
+                    force = false,
+                    schemaCreate = 'create',
+                    schemaUpdate = 'update',
+                  }) {
     let result;
     let object = await this.native.findOne(filter);
     if (!object) {
       result = await this.createOne({body, view, fields, session, force, schema: schemaCreate});
     } else {
       result = await this.updateOne({
-        id: object._id.toString(), body, view, fields, session, prev: object, force, schema: schemaUpdate
+        id: object._id.toString(), body, view, fields, session, prev: object, force, schema: schemaUpdate,
       });
     }
     return result;
@@ -765,7 +901,7 @@ class Model {
       body: {isDeleted: true},
       fields: pFields,
       session,
-      schema: 'delete'
+      schema: 'delete',
     });
   }
 
@@ -789,7 +925,7 @@ class Model {
         //fields: pFields,
         session,
         schema: 'delete',
-        view: false
+        view: false,
       });
       result++;
     }
@@ -813,11 +949,11 @@ class Model {
   async getCount({filter = {}, session}) {
     let result = await this.native.aggregate([
       {
-        $match: filter
+        $match: filter,
       },
       {
-        $count: 'count'
-      }
+        $count: 'count',
+      },
     ]).toArray();
     return result.length ? result[0].count : 0;
   }
@@ -825,55 +961,61 @@ class Model {
   /**
    * Фильтр объекта по схеме view и проекция по fields с подгрузкой связанных сущностей
    * @param object
-   * @param options
+   * @param view
+   * @param fields
+   * @param session
    * @returns {Promise.<Object>}
    */
-  async view(object, options = {}) {
-    const _view = (typeof options.view === 'undefined' || options.view === true)
-      ? {type: true, schema: true, fields: true}
-      : options.view || {};
-
-    let source = object;
-    if (_view.type || _view.schema) {
-      //object = await this.reconvertTypes(object);
-    }
-    if (_view.schema) {
-      object = await this.validate({schema: options.schema || 'view', object, session: options.session, target: 'json'});
-    }
-    if (_view.fields) {
-      if (typeof options.fields !== 'string' &&
-        (!options.fields || !Object.keys(options.fields).length)) {
-        options.fields = {_id: 1};
-      }
-      object = await this.storage.loadByFields(
-        {object, fields: options.fields, session: options.session || {}}
-      );
-    }
-
-    if (options.from === 'viewList'){
-      object = await this.viewListAppend(object, options, source);
+  async view({object, view = true, fields = '*', session = {}}) {
+    // Вычисляемые свойства для объекта
+    object = this.append({object, session});
+    if (view) {
+      fields = queryUtils.parseFields(fields);
+      // Фильтрация и восстановление экземпляров через валидацию
+      object = await this.validate({object, schema: 'view', session});
+      // Скрытие или догрузка по fields
+      object = await this.storage.loadByFields({object, fields, session});
     } else {
-      object = await this.viewAppend(object, options, source);
+      // Только восстановление экземпляров
+      object = this.restoreInstances(object);
     }
-
     return object;
   }
 
   /**
    * Метод view для массива объектов
    * @param list
-   * @param options
+   * @param view
+   * @param fields
+   * @param session
+   * @param filter
+   * @param seek
    * @param limit
    * @returns {Promise<*>}
    */
-  async viewList(list, options = {}, limit = 0) {
-    options.fields = (typeof options.fields === 'string') ? queryUtils.parseFields(options.fields) : options.fields;
-    if (!options.fields.items){
-      options.fields = {items: options.fields};
+  async viewList({list, view = true, fields = 'items(*)', session = {}, filter, seek, limit}) {
+    // Вычисляемые свойства для списка
+    list = this.appendList({list, session, filter, seek, limit});
+    if (view) {
+      // Нормализация fields для списка
+      fields = queryUtils.parseFields(fields);
+      if (!fields.items) fields = {items: fields};
+      // Вычисляемые свойства для каждого объекта в списке
+      for (let i = list.items.length - 1; i >= 0; i--) {
+        list.items[i] = this.append({object: list.items[i], fields: fields.items, session});
+      }
+      // Фильтрация и восстановление экземпляров через валидацию
+      list = await this.validate({object: list, schema: 'viewList', session});
+      // Скрытие или догрузка по fields
+      list = await this.storage.loadByFields({object: list, fields, session});
+    } else {
+      // Только восстановление экземпляров
+      for (let i = list.items.length - 1; i >= 0; i--) {
+        list.items[i] = this.append({object: list.items[i], session});
+        list.items[i] = this.restoreInstances(list.items[i]);
+      }
     }
-    options.from = 'viewList';
-    options.schema = 'viewList';
-    return await this.view(list, options);
+    return list;
   }
 
   /**
@@ -885,11 +1027,7 @@ class Model {
    * @param options
    * @returns {Promise<*>}
    */
-  async viewAppend(object, options = {}, source) {
-    // @example
-    if (options.from !== 'viewList') {
-      // Только при выборке одного объекта
-    }
+  async append({object, session}) {
     return object;
   }
 
@@ -901,14 +1039,11 @@ class Model {
    * @param options
    * @returns {Promise<void>}
    */
-  async viewListAppend(list, options = {}, source) {
-    if (options.fields['count']) {
-      list.count = await this.getCount(options);
-    }
-    let itemOptions = {...options, fields: options.fields.items};
-    for (let i=0; i< list.items.length; i++){
-      list.items[i] = await this.viewAppend(list.items[i], itemOptions);
-    }
+  async appendList({list, session, filter, seek, limit}) {
+    list.count = new CalculateProperty(async () => {
+      return await this.getCount({filter, session});
+    });
+
     return list;
   }
 
@@ -932,6 +1067,34 @@ class Model {
    */
   async onCreate({object, diff, session}) {
 
+  }
+
+  /**
+   * Восстановление экземпляров свойств по схеме модели.
+   * Обычно используется после выборки из базы данных.
+   * Используется логика ключевого слова instance без выполнения валидации по всей схеме.
+   * Предварительно в схеме модели найдены все свойства с ключевым словом instance.
+   * @param value
+   * @param path
+   * @returns {*}
+   */
+  restoreInstances(value, path = '') {
+    if (this._propertiesWithInstance[path]) {
+      return this.spec.exeKeywordInstance(value, this._propertiesWithInstance[path]);
+    }
+    const type = mc.utils.type(value);
+    if (type === 'Object') {
+      for (const [key, item] of Object.entries(value)) {
+        const pathKey = path ? `${path}/${key}` : key;
+        value[key] = this.restoreInstances(item, pathKey);
+      }
+    } else if (type === 'Array') {
+      const pathKey = `${path}//`;
+      for (let i = value.length - 1; i--; i >= 0) {
+        value[i] = this.restoreInstances(value[i], pathKey);
+      }
+    }
+    return value;
   }
 
   /**
@@ -991,19 +1154,15 @@ class Model {
    * Валидация объекта по указанной схеме
    * @param object {object}
    * @param prev {object|null} Предыдущая версия объекта при валидации на изменение данных
-   * @param schema {string} Название схемы модели, определенная в методе this.schemes()
    * @param session {object} Объект сессии
    * @returns {Promise<object>}
    */
-  async validate({object, prev = null, schema, session}) {
-    if (this._schemes[schema]) {
-      await this.spec.validate(`#/components/schemas/${this.type()}.${schema}`, object, {
-        session: session || {},
-        collection: this,//@todo deprecated
-        model: this,
-      });
-    }
-    return object;
+  async validate({object, prev = null, session}) {
+    return this.spec.validate(`#/components/schemas/${this.type()}`, object, {
+      session: session || {},
+      collection: this,//@todo deprecated
+      model: this,
+    });
   }
 
   /**
@@ -1018,8 +1177,17 @@ class Model {
    * @param method {string} Методы вызываемый у экземпляра свойства, если он есть
    * @returns {Promise<void>}
    */
-  async processPropertiesWithInstance({value, prev, path = '', object, objectPrev, session, pathMeta = '', method = 'onStep'}){
-    if (this._propertiesWithInstance[pathMeta]){
+  async processPropertiesWithInstance({
+                                        value,
+                                        prev,
+                                        path = '',
+                                        object,
+                                        objectPrev,
+                                        session,
+                                        pathMeta = '',
+                                        method = 'onStep',
+                                      }) {
+    if (this._propertiesWithInstance[pathMeta]) {
       if (value && typeof value[method] === 'function') {
         await value[method]({session, object, objectPrev, path, prev, model: this, services: this.services});
       }
@@ -1034,7 +1202,7 @@ class Model {
           object,
           objectPrev,
           session,
-          method
+          method,
         });
       }
     } else if (mc.utils.type(value) === 'Object') {
@@ -1048,7 +1216,7 @@ class Model {
           object,
           objectPrev,
           session,
-          method
+          method,
         });
       }
     }
@@ -1090,7 +1258,7 @@ class Model {
         const setPrevItem = set[i]._id && setPrev && setPrev.find(
           item => {
             return item._id && item._id.toString() === set[i]._id.toString();
-          }
+          },
         );
         await this.saveLinks({
           object,
@@ -1098,7 +1266,7 @@ class Model {
           set: set[i],
           setPrev: setPrevItem ? setPrevItem : undefined,
           changes,
-          canDelete: false
+          canDelete: false,
         });
         if (set[i]._id) {
           exists[set[i]._id] = true;
@@ -1110,7 +1278,7 @@ class Model {
             await this.storage.get(setPrev[i]['_type']).onForeignDelete({
               foreignObject: object,
               foreignPath: `${path}`,
-              foreignLink: setPrev[i]
+              foreignLink: setPrev[i],
             });
           }
         }
@@ -1126,7 +1294,7 @@ class Model {
           await this.storage.get(set['_type']).onForeignAdd({
             foreignObject: object,
             foreignPath: path,
-            foreignLink: set
+            foreignLink: set,
           });
 
           await this.onUpdateTree({
@@ -1134,7 +1302,7 @@ class Model {
             path,
             link: set,
             linkPrev: undefined,
-            method: 'add'
+            method: 'add',
           });
 
         } else if (setPrev['_id'].toString() !== set['_id'].toString()) {
@@ -1145,14 +1313,14 @@ class Model {
             await this.storage.get(setPrev['_type']).onForeignDelete({
               foreignObject: object,
               foreignPath: path,
-              foreignLink: setPrev
+              foreignLink: setPrev,
             });
           }
           // 2. Добавление новых обратных связей
           await this.storage.get(set['_type']).onForeignAdd({
             foreignObject: object,
             foreignPath: path,
-            foreignLink: set
+            foreignLink: set,
           });
 
           await this.onUpdateTree({
@@ -1160,14 +1328,14 @@ class Model {
             path,
             link: set,
             linkPrev: setPrev,
-            method: 'delete'
+            method: 'delete',
           });
           await this.onUpdateTree({
             object: object,
             path,
             link: set,
             linkPrev: setPrev,
-            method: 'add'
+            method: 'add',
           });
 
         } else {
@@ -1176,7 +1344,7 @@ class Model {
             foreignObject: object,
             foreignPath: path,
             foreignLink: set,
-            changes
+            changes,
           });
         }
         //await this.onUpdateTree({object, path, set, setPrev});
@@ -1185,7 +1353,7 @@ class Model {
         await this.storage.get(setPrev['_type']).onForeignDelete({
           foreignObject: object,
           foreignPath: path,
-          foreignLink: setPrev
+          foreignLink: setPrev,
         });
 
         await this.onUpdateTree({
@@ -1193,7 +1361,7 @@ class Model {
           path,
           link: undefined,
           linkPrev: setPrev,
-          method: 'delete'
+          method: 'delete',
         });
 
       } else {
@@ -1206,7 +1374,7 @@ class Model {
               path: `${path}${path ? '.' : ''}${key}`,
               set: set[key],
               setPrev: setPrev ? setPrev[key] : undefined,
-              changes
+              changes,
             });
           }
         }
@@ -1229,7 +1397,7 @@ class Model {
     if (this._links && this._links[path]) {
       let props = {
         _id: link._id,
-        _type: link._type
+        _type: link._type,
       };
       if (this._links[path].tree) {
         // Копирование массива связей ("хлебных крошек") из родительского объекта
@@ -1243,19 +1411,19 @@ class Model {
           props,
           await this.storage.get(link._type).view(
             link,
-            {fields: this._links[path].copy, view: {type: true, fields: true}}
+            {fields: this._links[path].copy, view: {type: true, fields: true}},
           ));
       }
       if (this._links[path].prepare) {
         Object.assign(
           props,
-          await this._links[path].prepare({path, link, foreign})
+          await this._links[path].prepare({path, link, foreign}),
         );
       }
       if (this._links[path].search) {
         const obj = await this.storage.get(link._type).view(
           link,
-          {fields: this._links[path].search, view: {type: true, fields: true}}
+          {fields: this._links[path].search, view: {type: true, fields: true}},
         );
         delete obj._id;
         props.search = objectUtils.getAllValues(obj, true);
@@ -1280,7 +1448,7 @@ class Model {
           this._links[path].inverse === foreignPath) {
 
           let props = await this.onLinkPrepare({
-            path: path, link: foreignObject, foreign: true
+            path: path, link: foreignObject, foreign: true,
           });
 
           await this.onUpdateTree({
@@ -1288,7 +1456,7 @@ class Model {
             path: path,
             link: props,
             linkPrev: undefined,
-            method: 'add-foreign'
+            method: 'add-foreign',
           });
 
           // Если size=1 и ссылка уже есть, то нужно проинформировать об её удалении
@@ -1297,25 +1465,25 @@ class Model {
             try {
               const prevObject = await this.getOne({
                 filter: {_id: new ObjectID(foreignLink._id)},
-                view: {type: true}
+                view: {type: true},
               });
               // Если path уже опредлен, то нужно сообщить об удалении обратной связи
               if (prevObject[path] && prevObject[path]._id && prevObject[path]._type) {
                 await this.storage.get(prevObject[path]._type).onForeignDelete({
                   foreignObject: prevObject,
                   foreignPath: path,
-                  foreignLink: prevObject[path]
+                  foreignLink: prevObject[path],
                 });
               }
             } catch (e) {
               console.log(e);
             }
             await this.native.updateOne({_id: new ObjectID(foreignLink._id)}, {
-              $set: {[path]: this.convertTypes(props)}
+              $set: {[path]: this.convertTypes(props)},
             });
           } else {
             await this.native.updateOne({_id: new ObjectID(foreignLink._id)}, {
-              $push: {[path]: this.convertTypes(props)}
+              $push: {[path]: this.convertTypes(props)},
             });
           }
         }
@@ -1346,14 +1514,14 @@ class Model {
           // Если size=1, то $set: {[path]: props} без поиска элемента
           if (this._links[path].size === '1') {
             await this.native.updateOne({_id: new ObjectID(foreignLink._id)}, {
-              $set: {[path]: props}
+              $set: {[path]: props},
             });
           } else {
             await this.native.updateOne({
               _id: new ObjectID(foreignLink._id),
-              [`${path}._id`]: props._id
+              [`${path}._id`]: props._id,
             }, {
-              $set: {[`${path}.$`]: props}
+              $set: {[`${path}.$`]: props},
             });
           }
 
@@ -1380,11 +1548,11 @@ class Model {
           if (this._links[path].size === '1') {
             // @todo Возможно, надо убедиться, что в свойстве удаляемая связь
             await this.native.updateOne({_id: new ObjectID(foreignLink._id)}, {
-              $set: {[path]: {}}
+              $set: {[path]: {}},
             });
           } else {
             await this.native.updateOne({_id: new ObjectID(foreignLink._id)}, {
-              $pull: {[path]: {_id: new ObjectID(foreignObject._id)}}
+              $pull: {[path]: {_id: new ObjectID(foreignObject._id)}},
             });
           }
 
@@ -1393,7 +1561,7 @@ class Model {
             path: path,
             link: undefined, // так как удаляем
             linkPrev: undefined, // хз где взять
-            method: 'delete-foreign'
+            method: 'delete-foreign',
           });
         }
       }

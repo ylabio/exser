@@ -1,4 +1,4 @@
-const any = require('./../any');
+const custom = require('../custom');
 /**
  * Объект
  * @param [maxProperties] {number} Максимальное количество свойств
@@ -37,7 +37,7 @@ module.exports = function ({
                              defaults = {},
                              ...other
                            }) {
-  let result = any({type: 'object', description, enums, constant, examples, errors, defaults, ...other});
+  let result = custom({type: 'object', description, enums, constant, examples, errors, defaults, ...other});
   if (maxProperties) {
     result.maxProperties = maxProperties;
   }

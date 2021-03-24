@@ -1,111 +1,95 @@
 const languages = require('./languages');
-const objectUtils = require('./../../../../utils/object-utils')
+const acceptLanguage = require('accept-language');
+const mc = require('merge-change');
+const Property = require('./../property');
 
-class I18nProperty {
+acceptLanguage.languages(Object.keys(languages));
 
-  constructor(value, options) {
-    this.value = value;
+class I18nProperty extends Property{
+
+  constructor({value, session, options}) {
+    super({
+      value,
+      session,
+      options: mc.patch({
+        default: 'ru',
+      }, options)
+    })
   }
 
-  setValue(value){
-    this.value = value;
-  }
-
-  /**
-   * Установка опций свойства
-   * @param options {Object}
-   */
-  setOptions(options){
-    this.options = options;
+  setValue(value) {
+    if (mc.utils.type(value) === 'Object') {
+      // Возможно переданы значения на нескольких языках
+      // Нужно проверить ключи объекта, являются ли они кодами языков
+      const keys = Object.keys(value);
+      for (let key of keys) {
+        if (!languages[key]) {
+          throw new Error('Invalid language code');
+        }
+      }
+      this.value = value;
+    } else {
+      // Установка языка по локали
+      const key = acceptLanguage.get(this.session.acceptLang && this.session.acceptLang!=='all' ? this.session.acceptLang : this.options.default);
+      this.value = {[key]: value};
+    }
   }
 
   /**
    * С учётом локали возвращает строчное значение
    * @returns {*}
    */
-  valueOf(){
-    return this.value;
+  valueOf() {
+    if (this.session.acceptLang === 'all'){
+      return this.value;
+    }
+    const key = acceptLanguage.get(this.session.acceptLang ? this.session.acceptLang : this.options.default);
+    return this.value[key]; // @todo Ели нет key, то вернуть иное доступное значение?
   }
 
-  /**
-   * С учётом локали возвращает строчное значение или объекта
-   * @returns {*}
-   */
-  toJSON(){
-    return this.value;
-  }
-
-  /**
-   * Структура для сохранения в mongodb
-   * @returns {*}
-   */
-  toBSON(){
-    return this.value;
-  }
-
-  /**
-   * Конвертация в структуру для обновления свойств в mongodb
-   * Вместо полной перезаписи объекта, обновляются только измененные свойства i18n
-   * @param path {string} Путь на родительское свойство
-   * @param result {Object} Объект, в которой прописываются операции на изменение свойств
-   * @param clearUndefined {Boolean} Игнорировать или нет undefined свойства
-   * @returns {{$set: {}}} Возвращается аргумент result
-   */
-  toFlat(path = '', result = {}, clearUndefined = false){
-    for (const [lang, text] of Object.entries(this.value)) {
-      if (!clearUndefined || typeof text !== 'undefined') {
-        result[path ? `${path}.${lang}` : lang] = text;
+  isContain(value){
+    const keys = Object.keys(this.value);
+    for (const key of keys){
+      if (this.value[key] === value){
+        return true;
       }
     }
-    return result;
+    return false;
   }
 
-  /**
-   * Валидация свойства
-   * @param storage
-   * @param session
-   * @param object
-   * @param path
-   */
-  validate({session, object, path}){
-    if (typeof this.value === 'object') {
-      const keys = Object.keys(this.value);
-      let errors = [];
-      for (const key of keys) {
-        if (!languages[key]) {
-          errors.push({
-            keyword: 'i18n',
-            dataPath: `${path}/${key}`,
-            message: 'Invalid language code',
-            //schemaPath,
-            params: {},
-            //schema,
-            //parentSchema,
-            //data
-          });
-        }
-      }
-      if (errors.length) {
-        //throw new Ajv.ValidationError(errors);
-      }
+  mergeString(value ,kind){
+    const key = acceptLanguage.get(this.session.acceptLang && this.session.acceptLang !=='all' ? this.session.acceptLang : this.options.default);
+    const second = {[key]: value};
+    if (kind === 'merge' || kind === 'update'){
+      return new I18nProperty({value: mc.merge(this.value, second), options: this.options, session: this.session});
     }
+    if (kind === 'patch'){
+      this.setValue(
+        mc.patch(this.value, second)
+      )
+    }
+    return this;
   }
 
-  /**
-   * Подготовка свойства или чего-либо перед сохранением объекта
-   */
-  beforeSave({storage, session, object, path}){
-    // Если валидация не выполнялась, то выполнить.
-    //console.log('beforeSave', path);
-  }
-
-  /**
-   * Постобработка свойства после успешного сохранения объекта
-   */
-  afterSave({storage, session, object, path}){
-    // Какие-то дополнительные операции в базе
-    //console.log('afterSave', path);
+  mergeObject(value, kind){
+    if (kind === 'merge' || kind === 'update'){
+      return new I18nProperty({value: mc.merge(this.value, value), options: this.options, session: this.session});
+    }
+    if (kind === 'patch'){
+      this.setValue(
+        mc.patch(this.value, value)
+      )
+    }
+    return this;
   }
 }
+
+mc.addMerge('I18nProperty', 'String', (first, second, kind) => {
+  return first.mergeString(second, kind);
+});
+
+mc.addMerge('I18nProperty', 'Object', (first, second, kind) => {
+  return first.mergeObject(second, kind);
+});
 
 module.exports = I18nProperty;

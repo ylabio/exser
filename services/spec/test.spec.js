@@ -77,37 +77,28 @@ describe('Spec', () => {
     });
   });
 
-
-  test('validate i18n', async () => {
-    s.spec.set('#/components/schemas/test.i18n', {
+  test('validate instance', async () => {
+    s.spec.set('#/components/schemas/test.object', {
       type: 'object',
       properties: {
-        name: schemaUtils.i18n({
-          maxLength: 10,
-          default: '0',
-        }),
+        name: schemaUtils.string({}),
+        value: schemaUtils.number({})
       },
-    });
-    // const schema = s.spec.get('#/components/schemas/test.model');
-    // console.log(JSON.stringify(schema, null, 2));
-    const result = await s.spec.validate('#/components/schemas/test.i18n', {
-      name: 'Name',
-    });
-    expect(result).toStrictEqual({
-      name: 'Name',
+      additionalProperties: false
+      //required: ['options']
     });
 
-    const result2 = await s.spec.validate('#/components/schemas/test.i18n', {
-      name: {
-        ru: 'Русс',
-        en: 'Англ',
-      },
-    });
-    expect(result2).toStrictEqual({
-      name: {
-        ru: 'Русс',
-        en: 'Англ',
-      },
-    });
-  });
+    class X {
+      constructor(name, value) {
+        this.name = name;
+        this.value = value;
+        this.sime = 10;
+      }
+    }
+
+    const x = new X('x', 0);
+    const result = await s.spec.validate('#/components/schemas/test.object', x);
+
+    console.log(x, result, x === result, x.constructor.name);
+  })
 });

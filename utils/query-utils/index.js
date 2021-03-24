@@ -133,14 +133,14 @@ const queryUtils = {
    * @return Object
    */
   parseFields: (fieldsString) => {
-    if (fieldsString === 1) {
+    if (fieldsString === 1 || !fieldsString) {
       return {'*': 1};
     }
     if (fieldsString && typeof fieldsString === 'object') {
       return fieldsString;
     }
-    if (!fieldsString || typeof fieldsString !== 'string') {
-      return undefined;
+    if (typeof fieldsString !== 'string') {
+      return {'*': 1};
     }
     // let formatted = fieldsString.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([,$)}])/uig, '"$1":1$2');
     // formatted = formatted.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([({])/uig, '"$1":{');
@@ -162,6 +162,12 @@ const queryUtils = {
     const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
     // @todo проверка в *
     return objectUtils.get(obj || {}, prop, false);
+  },
+
+  setField: (fields, name, value) => {
+    const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
+    obj[name] = value;
+    return obj;
   },
 
   /**

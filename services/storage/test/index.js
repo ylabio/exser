@@ -64,9 +64,9 @@ class Test extends Model {
     }));
   }
 
-  schemes() {
-    return this.spec.extend(super.schemes(), {});
-  }
+  // schemes() {
+  //   return this.spec.extend(super.schemes(), {});
+  // }
 }
 
 module.exports = Test;

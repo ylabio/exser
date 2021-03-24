@@ -15,7 +15,7 @@ describe('Storage.base', () => {
         _id: new ObjectID(),
         _type: 'user'
       },
-      acceptLang: 'all'
+      acceptLang: 'ru'
     };
   });
 
@@ -40,7 +40,6 @@ describe('Storage.base', () => {
         order3: '-1'
       },
       session: data.session,
-      view: false
     });
 
     expect(newObj).toMatchObject({
@@ -54,7 +53,31 @@ describe('Storage.base', () => {
     // expect(utils.type(newObj._id)).toBe('ObjectID')
   });
 
-  test('Added simple', async () => {
+  test('Create simple', async () => {
+    const newObj = await s.objects.createOne({
+      body: {
+        name: 'Test',
+        title: 'i18n'
+      },
+      session: data.session,
+    });
+
+    console.log(utils.toPlain(newObj));
+
+    expect(utils.toPlain(newObj)).toMatchObject({
+      _type: 'test',
+      name: 'Test',
+      status: 'new',
+      title: {
+        ru: 'i18n'
+      }
+    });
+
+    //expect(utils.type(newObj.dateCreate)).toBe('Date')
+    expect(utils.type(newObj._id)).toBe('ObjectID')
+  });
+
+  test('Update simple', async () => {
     const newObj = await s.objects.createOne({
       body: {
         name: 'Test',
@@ -64,7 +87,16 @@ describe('Storage.base', () => {
       view: false
     });
 
-    expect(newObj).toMatchObject({
+    const chgObj = await s.objects.updateOne({
+      body: {
+        name: 'Test2',
+        title: 'i18n'
+      },
+      session: data.session,
+      view: false
+    });
+
+    expect(utils.toPlain(newObj)).toMatchObject({
       _type: 'test',
       name: 'Test',
       status: 'new',
