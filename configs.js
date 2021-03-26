@@ -69,6 +69,12 @@ module.exports = {
     models: require('./services/storage/models.js')
   },
 
+  logs: {
+    unsetFields: [
+      'password'
+    ]
+  },
+
   spec: {
     extend: require('./services/spec/extend.js'),
     default: {

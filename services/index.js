@@ -98,6 +98,20 @@ class Services {
   async getExample(params) {
     return this.import('./example', params);
   }
+
+  /**
+   * @returns {Promise<Logs>}
+   */
+  async getLogs(params) {
+    return this.import(__dirname + '/logs', params);
+  }
+
+  /**
+   * @returns {Promise<Sessions>}
+   */
+  async getSessions(params) {
+    return this.import(__dirname + '/sessions', params);
+  }
 }
 
 process.on('unhandledRejection', function (reason/*, p*/) {

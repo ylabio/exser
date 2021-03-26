@@ -99,7 +99,7 @@ class Spec {
             return true;
           } catch (e) {
             //console.log(data);
-            console.log(e);
+            //console.log(e);
             return false;
           }
         };
@@ -471,7 +471,7 @@ class Spec {
         }
       });
     }
-    console.log(JSON.stringify(issues));
+    //console.log(JSON.stringify(issues));
     return new errors.Validation(issues);
   };
 
