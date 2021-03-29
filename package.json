@@ -1,12 +1,13 @@
 {
   "name": "exser",
-  "version": "1.4.28",
+  "version": "1.5.0",
   "description": "API Server for real projects",
   "main": "exser.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node index.js rest-api",
     "test": "node ./node_modules/jest/bin/jest.js --runInBand --verbose --forceExit",
-    "task-example": "node index.js --task example mode=clear"
+    "task-example": "node index.js tasks --name=example --mode=clear",
+    "dump": "node index.js dump"
   },
   "repository": {
     "type": "git",
@@ -29,9 +30,11 @@
   "dependencies": {
     "accept-language": "^3.0.18",
     "ajv": "^6.12.2",
+    "argentum": "^0.6.0",
     "babel-eslint": "^10.1.0",
     "bluebird": "^3.7.2",
     "body-parser": "^1.19.0",
+    "cli-argument-parser": "^0.3.6",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "deep-equal": "^2.0.3",
@@ -44,6 +47,7 @@
     "lodash.camelcase": "^4.3.0",
     "lodash.isequal": "^4.5.0",
     "lodash.upperfirst": "^4.3.1",
+    "merge-change": "^1.6.1",
     "moment": "^2.27.0",
     "mongodb": "^3.5.9",
     "morgan": "^1.10.0",

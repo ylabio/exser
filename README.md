@@ -20,7 +20,7 @@ const Services = require('exser').Services;
 
 (async () => {
   // Относительные пути на файлы конфигурации, которые сливаются в один объект.
-  const services = new Services().configure('configs.js', 'configs.local.js');
+  const services = new Services().configure(['configs.js', 'configs.local.js']);
   
   // HTTP сервер
   const restApi = await services.getRestApi();
@@ -75,7 +75,7 @@ module.exports = Mail;
 const Services = require('./services');
 
 (async () => {
-  const services = new Services().configure('configs.js', 'configs.local.js');
+  const services = new Services().configure(['configs.js', 'configs.local.js']);
   const args = process.argv.slice(2);
   
   if (args.length && args[0] === '--task') {

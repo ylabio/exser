@@ -25,7 +25,12 @@ class RestAPI {
         resolve();
       });
     });
+    this.logStart(app);
     return app;
+  }
+  
+  logStart(app){
+    console.log(`REST API: ${this.config.url}, docs: ${this.config.url}/docs`);
   }
 
   async getApp(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {

@@ -5,4 +5,4 @@ const Services = require('./index');
  * Импортируется в тестах
  * @type {Promise.<Services>}
  */
-module.exports = new Services().configure('configs.js', 'configs-spec.js');
+module.exports = new Services().configure(['configs.js', 'configs-spec.js']);
