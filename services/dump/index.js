@@ -25,7 +25,7 @@ class Dump {
       if (typeof models === 'string'){
         models = [models];
       }
-      if (models.length === 0){
+      if (!models || models.length === 0){
         console.log(`Model names not specified. Example > node index.js dump --${mode}[]=users,roles`)
       } else {
         let clear = mode === 'import' && params.clear === true;
@@ -154,7 +154,7 @@ class Dump {
    * @returns {{}|*}
    */
   removeFields(value, fields) {
-    if (!fields instanceof Set){
+    if (!(fields instanceof Set)){
       fields = new Set(fields)
     }
     const type = mc.utils.type(value);
