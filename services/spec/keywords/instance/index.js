@@ -13,10 +13,10 @@ const keywordMaker = function(spec, services){
     keyword: 'instance',
     modifying: true,
     compile: (schema) => {
-      return function (data, {dataPath, rootData}) {
+      return function (data, {instancePath, rootData}) {
         const context = this;
         try{
-          mc.utils.set(rootData, dataPath, keywordMaker.exe(data, schema, context.session, services), false, '/');
+          mc.utils.set(rootData, instancePath, keywordMaker.exe(data, schema, context.session, services), false, '/');
           return true;
         } catch (e){
           return false;
