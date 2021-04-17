@@ -3,7 +3,7 @@ const ajvFormats = require('ajv-formats').default;
 const ajvKeywords = require('ajv-keywords');
 const {errors, objectUtils} = require('../../utils');
 const mc = require('merge-change');
-
+const instance = require('./keywords/instance');
 /**
  * Сервис спецификации
  * Содержит все схемы для валидации, фильтрации моделей и описания апи
@@ -129,11 +129,46 @@ class Spec {
    * @param construct
    */
   setKeywordInstanceClass(construct) {
-    require('./keywords/instance').CLASS_NAMES[construct.name] = construct;
+    instance.CLASS_NAMES[construct.name] = construct;
   }
 
   exeKeywordInstance(data, dataSchema){
-    return require('./keywords/instance').exe(data, dataSchema);
+    return instance.exe(data, dataSchema);
+  }
+
+  /**
+   * Поиск свойств с ключевым свойством
+   * @param keyword {String} Название свойства
+   * @param schema {Object} Схема текущего свойства. (Начинается со схемы всей модели)
+   * @param result {Object} Объект с найденными метаданными
+   * @param path {String} Путь текущего свойства (Начинается с пустого)
+   * @returns {{}}
+   */
+  findPropertiesWithKeyword({keyword, schema, result = {}, path = ''}) {
+    if (typeof schema === 'object') {
+      // Запоминаем ключевое слово схемы по пути на свойство
+      if (keyword in schema) {
+        if (!(path in result)) {
+          result[path] = {};
+        }
+        result[path] = schema[keyword];
+      }
+      if (schema.type === 'array' && schema.items) {
+        if (schema.items.type === 'object' && schema.items.properties) {
+          let propsNames = Object.keys(schema.items.properties);
+          for (let propName of propsNames) {
+            // Двойными слэшами кодируется множественность свойства (массив)
+            this.findPropertiesWithKeyword({keyword, schema: schema.items.properties[propName], result, path: `${path}${path ? '//' : '/'}${propName}`});
+          }
+        }
+      } else if (schema.type === 'object' && schema.properties) {
+        let propsNames = Object.keys(schema.properties);
+        for (let propName of propsNames) {
+          this.findPropertiesWithKeyword({keyword, schema: schema.properties[propName], result, path: `${path}${path ? '.' : ''}${propName}`});
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -149,9 +184,6 @@ class Spec {
       throw Error(`Schema by path ${path} was not found`);
     }
     try {
-      if (!context.target) {
-        context.target = 'js'; // может быть json когда типы конвертируются в совместимые json (например дата строкой)
-      }
       return await ajvSch.call(context, value);
     } catch (e) {
       //console.log(e);
@@ -298,136 +330,6 @@ class Spec {
     console.log(JSON.stringify(issues, null, 2));
     return new errors.Validation(issues);
   };
-
-  extend(def, newDef) {
-    let result = def;
-    if (typeof def === 'string') {
-      result = this.get(def);
-    }
-    if (typeof def === 'function') {
-      result = def(this);
-    } else {
-      result = def;
-    }
-    result = objectUtils.merge(result, newDef/*, {replaceEmpty: true}*/);
-
-    if (result.$mode) {
-      if (result.$mode === 'view') {
-        result = this.clearRulesView(result);
-      } else if (result.$mode === 'update') {
-        result = this.clearRulesUpdate(result);
-      }
-      delete result.$mode;
-    }
-
-    return result;
-  }
-
-  clearRulesView(schema) {
-    let result = {};
-    let keys = Object.keys(schema);
-    for (let key of keys) {
-      if (['type', 'description', 'title', 'items',
-        'properties', 'additionalProperties', '$ref', '$id', 'i18n', 'anyOf', 'oneOf', 'allOf', 'not',
-        'toDate', 'toObjectId',
-      ].indexOf(key) !== -1) {
-        result[key] = schema[key];
-      }
-      if (key === 'i18n') {
-        result[key] = 'out';
-      }
-      if (key === 'items') {
-        result[key] = this.clearRulesView(result[key]);
-      }
-      if (key === 'properties') {
-        let propsNames = Object.keys(result[key]);
-        for (let propName of propsNames) {
-          result[key][propName] = this.clearRulesView(result[key][propName]);
-        }
-      }
-      if (key === 'required') {
-        result[key] = [];
-      }
-      if (key === '$ref' && schema[key] === '#/components/schemas/object-id') {
-        delete result['$ref'];
-        result['type'] = 'string';
-      }
-    }
-    return result;
-  };
-
-  /**
-   * @todo
-   * @param schema
-   * @returns {{}}
-   */
-  clearRulesUpdate(schema) {
-    let result = {};
-    let keys = Object.keys(schema);
-    for (let key of keys) {
-      if (['default'].indexOf(key) === -1) {
-        result[key] = schema[key];
-      }
-      if (key === 'items') {
-        result[key] = this.clearRulesUpdate(result[key]);
-      }
-      if (key === 'properties') {
-        let propsNames = Object.keys(result[key]);
-        for (let propName of propsNames) {
-          result[key][propName] = this.clearRulesUpdate(result[key][propName]);
-        }
-      }
-      if (key === 'required') {
-        result[key] = [];
-      }
-    }
-    return result;
-  };
-
-  /**
-   * @todo Перенести в storage
-   * @param schema
-   * @param path
-   * @param type
-   * @returns {{}}
-   */
-  findLinks(schema, path = '', type = '') {
-    let result = {};
-    if (typeof schema === 'object') {
-      if (schema.rel) {
-        result[path] = Object.assign({}, {size: '1'}, schema.rel);
-        // @todo Если свойство - деревро, то запомнить соответствие типа и названия дерева (чтобы знать в каких коллекциях отношение)
-        if (schema.rel.tree) {
-          if (!this.trees[schema.rel.tree]) {
-            this.trees[schema.rel.tree] = {};
-          }
-          this.trees[schema.rel.tree][type] = path;
-          result[path].treeTypes = this.trees[schema.rel.tree];
-        }
-      } else if (schema.type === 'array' && schema.items) {
-        if (schema.items.rel) {
-          result[path] = Object.assign({}, {size: 'M'}, schema.items.rel);
-        } else if (schema.items.type === 'object' && schema.items.properties) {
-          let propsNames = Object.keys(schema.items.properties);
-          for (let propName of propsNames) {
-            Object.assign(
-              result,
-              this.findLinks(schema.items.properties[propName], `${path}${path ? '.' : ''}${propName}`, type),
-            );
-          }
-        }
-      } else if (schema.properties) {
-        let propsNames = Object.keys(schema.properties);
-        for (let propName of propsNames) {
-          Object.assign(
-            result,
-            this.findLinks(schema.properties[propName], `${path}${path ? '.' : ''}${propName}`, type),
-          );
-        }
-      }
-    }
-    return result;
-  }
 }
 
 module.exports = Spec;

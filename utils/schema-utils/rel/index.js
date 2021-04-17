@@ -1,4 +1,6 @@
+const mc = require('merge-change');
 const object = require('./../object');
+const objectId = require('./../objectid');
 /**
  * Схема отношения на другую модель
  * Отношение - это объект с ключами связанного объекта: идентификатором (_id) и типом (_type).
@@ -35,13 +37,13 @@ const object = require('./../object');
  */
 module.exports = function ({
                              model = [],
+                             by = ['_id', '_key'],
                              copy = '',
                              search = '',
-                             inverse = '',
-                             tree = '',
-                             own = false,
-                             proto = false,
-                             by = ['_id', '_key'],
+                             // inverse = '',
+                             // tree = '',
+                             // own = false,
+                             // proto = false,
                              maxProperties,
                              minProperties,
                              properties,
@@ -59,19 +61,15 @@ module.exports = function ({
                              defaults = {},
                              ...other
                            }) {
-  let result = object({
-    // Метаданные отношения
-    rel: {type: model, copy, search, inverse, tree, by},
-    //instance: {name: 'RelProperty', emptyToNull: true, createWithNull: true, options: {type: model, copy, search, inverse, tree, by}},
-    // Базовые свойства объекта
+
+  let typeObject = object({
+    properties: mc.patch({
+      _id: objectId({description: 'Идентификатор ObjectID'}),
+      _type: {type: 'string', description: 'Тип объекта'},
+      _key: {type: 'string', description: 'Вторичный идентификатор объекта'}
+      }, properties),
     maxProperties,
     minProperties,
-    properties: {
-      _id: {$ref: '#/components/schemas/object-id'},
-      _type: {type: 'string', description: 'Тип объекта'},
-      _key: {type: 'string', description: 'Вторичный идентификатор объекта'},
-      ...properties
-    },
     patternProperties,
     additionalProperties,
     required,
@@ -81,20 +79,82 @@ module.exports = function ({
     description,
     enums,
     constant,
-    examples,
-    errors: {rel: 'Not found relation object', ...errors},
-    defaults,
-    ...other
+    errors,
+    ...other,
   });
   // Свойство для индексации дерева
-  if (tree) {
-    result.properties._tree = {type: 'array', description: 'Массив родителей', items: {type: 'object'}};
-  }
+  // if (tree) {
+  //   typeObject.properties._tree = {type: 'array', description: 'Массив родителей', items: {type: 'object'}};
+  // }
   // Допустимые значения для свойство _type если
   if (Array.isArray(model)) {
-    if (model.length) result.properties._type.enum = model;
+    if (model.length) typeObject.properties._type.enum = model;
   } else {
-    if (model) result.properties._type.enum = ['', model];
+    if (model) typeObject.properties._type.enum = ['', model];
   }
+
+  let result = {
+    anyOf: [
+      {is: 'RelProperty', errors: {is: false}}, // Сперва проверка принадлежности классу, чтобы валидатор не удалил свойства в нём из-за других вариантов правил
+      typeObject
+    ],
+    instance: {name: 'RelProperty', emptyToNull: true, createWithNull: true, options: {
+        model, by, copy, search//, inverse, tree, own, proto,
+      }}, // Конвертация в экземпляр RelProperty
+    errors: {
+      anyOf: {message: 'Incorrect relation', rule: 'type'}, // Обобщение всех ошибок из anyOf
+      ...errors,
+    },
+    description,
+  };
+
+  if (examples) {
+    result.examples = examples;
+  }
+  // if (errors) {
+  //   result.errors = errors;
+  // }
+  if (defaults) {
+    result.default = defaults;
+  }
+  //
+  //
+  // let result = object({
+  //   // Метаданные отношения
+  //   rel: {type: model, copy, search, inverse, tree, by},
+  //   //instance: {name: 'RelProperty', emptyToNull: true, createWithNull: true, options: {type: model, copy, search, inverse, tree, by}},
+  //   // Базовые свойства объекта
+  //   maxProperties,
+  //   minProperties,
+  //   properties: {
+  //     _id: {$ref: '#/components/schemas/object-id'},
+  //     _type: {type: 'string', description: 'Тип объекта'},
+  //     _key: {type: 'string', description: 'Вторичный идентификатор объекта'},
+  //     ...properties
+  //   },
+  //   patternProperties,
+  //   additionalProperties,
+  //   required,
+  //   dependentRequired,
+  //   dependentSchemas,
+  //   propertyNames,
+  //   description,
+  //   enums,
+  //   constant,
+  //   examples,
+  //   errors: {rel: 'Not found relation object', ...errors},
+  //   defaults,
+  //   ...other
+  // });
+  // // Свойство для индексации дерева
+  // if (tree) {
+  //   result.properties._tree = {type: 'array', description: 'Массив родителей', items: {type: 'object'}};
+  // }
+  // // Допустимые значения для свойство _type если
+  // if (Array.isArray(model)) {
+  //   if (model.length) result.properties._type.enum = model;
+  // } else {
+  //   if (model) result.properties._type.enum = ['', model];
+  // }
   return result;
 };

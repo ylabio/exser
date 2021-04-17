@@ -26,7 +26,7 @@ module.exports = function ({
       {type: 'string', pattern: '^[0-9a-fA-F]{24}$', errors: {pattern: false}}, // Строка в формате Hash24
     ],
     //toObjectId: true, // Ключевое слово сконвертирует строку в экземпляр ObjectId. Пустое значение в null},
-    //instance: {name: 'ObjectID', emptyToNull: true, createWithNull: false},
+    instance: {name: 'ObjectID', emptyToNull: true, createWithNull: false},
     description,
     errors: {
       anyOf: {message: 'Incorrect type (ObjectID or 24byte hex string)', rule: 'type'},

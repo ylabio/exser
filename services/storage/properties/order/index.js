@@ -1,12 +1,13 @@
 const mc = require('merge-change');
-const Property = require('./property');
+const Property = require('./../property');
 
 class OrderProperty extends Property{
 
-  constructor({value = 'max', options, session}) {
+  constructor({value = 'max', session, services, options}) {
     super({
       value,
       session,
+      services,
       options: mc.patch({
         /**
          * Названия свойств для формирования условия на множество объектов среди которых выполнять упорядочивание.
@@ -17,7 +18,7 @@ class OrderProperty extends Property{
     });
   }
 
-  setValue(value){
+  set(value){
     this.value = value;
     this.needBeforeSave = true;
     this.needAfterSave = true;
@@ -34,16 +35,14 @@ class OrderProperty extends Property{
   /**
    * Подготовка свойства перед сохранением объекта
    * Вычисление реального порядкового значения, если указаны спец коды.
-   * @param session
-   * @param object
-   * @param objectPrev
-   * @param path
-   * @param prev
-   * @param model
-   * @param services
+   * @param object Объект с новыми свойствами
+   * @param objectPrev Старый объект
+   * @param path Путь на свойство
+   * @param prev Предыдущее значение
+   * @param model Storage модель
    * @returns {Promise<void>}
    */
-  async beforeSave({session, object, objectPrev, path, prev, model, services}){
+  async beforeSave({object, objectPrev, path, prev, model}){
     if (this.needBeforeSave) {
       const prop = path.replace('/', '.');
       // Если значение ещё не вычислено
@@ -76,16 +75,14 @@ class OrderProperty extends Property{
 
   /**
    * Сдвиги порядкового значения у других объектов
-   * @param session
-   * @param object
-   * @param objectPrev
-   * @param path
-   * @param prev
-   * @param model
-   * @param services
+   * @param object Объект с новыми свойствами
+   * @param objectPrev Старый объект
+   * @param path Путь на свойство
+   * @param prev Предыдущее значение
+   * @param model Storage модель
    * @returns {Promise<void>}
    */
-  async afterSave({session, object, objectPrev, path, prev, model, services}){
+  async afterSave({object, objectPrev, path, prev, model}){
     if (this.needAfterSave) {
       const prop = path.replace('/', '.');
       // Сдвинуть порядок в других записях

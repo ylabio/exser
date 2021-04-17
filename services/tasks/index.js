@@ -8,14 +8,14 @@ class Tasks {
     return this;
   }
 
-  async start(taskName, ...args) {
-    if (this.config[taskName]) {
+  async start({name, ...params}) {
+    if (this.config[name]) {
 
-      let params = this.config[taskName] || {};
-      for (const m of args) {
-        const pair = m.split('=');
-        params[pair[0]] = (pair.length > 1) ? (Number(pair[1]) || pair[1]) : true;
-      }
+      let params = this.config[name] || {};
+      // for (const m of args) {
+      //   const pair = m.split('=');
+      //   params[pair[0]] = (pair.length > 1) ? (Number(pair[1]) || pair[1]) : true;
+      // }
       if (typeof params.log === 'undefined'){
         params.log = true;
       }
@@ -26,20 +26,20 @@ class Tasks {
         params.iterations = 0;
       }
       if (!params.log) {
-        console.log(`# Start ${taskName} (without logs)`);
+        console.log(`# Start ${name} (without logs)`);
       }
 
-      const taskService = await this.services.get(this.config[taskName].service || taskName, params);
+      const taskService = await this.services.get(this.config[name].service || name, params);
 
       let iteration = 0;
       const loop = async (resolve, reject) => {
         try {
           if (params.log) {
-            console.log(`# Start ${taskName} at ${moment().format('HH:mm:ss')}`);
+            console.log(`# Start ${name} at ${moment().format('HH:mm:ss')}`);
           }
           await taskService.start(params);
           if (params.log) {
-            console.log(`# Completed ${taskName} at ${moment().format('HH:mm:ss')}`);
+            console.log(`# Completed ${name} at ${moment().format('HH:mm:ss')}`);
           }
           iteration++;
           if (
@@ -52,7 +52,7 @@ class Tasks {
           }
         } catch (e) {
           if (params.log) {
-            console.error(`# Error ${taskName}: "${e.toString()}" at ${moment().format('HH:mm:ss')}. =`);
+            console.error(`# Error ${name}: "${e.toString()}" at ${moment().format('HH:mm:ss')}. =`);
           }
           reject(e);
         }
@@ -64,7 +64,7 @@ class Tasks {
         });
       });
     } else {
-      console.error(`Unknown task name "${taskName}"`);
+      console.error(`Unknown task name "${name}"`);
     }
   }
 }

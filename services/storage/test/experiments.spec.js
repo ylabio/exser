@@ -7,7 +7,7 @@ describe('Storage.base', () => {
 
   beforeAll(async () => {
     s.services = await require('../../init-spec');
-    s.storage = await s.services.getStorage({mode:'clear'});
+    s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
 
     data.session = {
@@ -17,6 +17,10 @@ describe('Storage.base', () => {
       },
       acceptLang: 'all'
     };
+  });
+
+  beforeEach(async () => {
+    await s.storage.clearStorage();
   });
 
   test('Custom class to mongo', async () => {

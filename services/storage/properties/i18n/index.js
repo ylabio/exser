@@ -7,17 +7,18 @@ acceptLanguage.languages(Object.keys(languages));
 
 class I18nProperty extends Property{
 
-  constructor({value, session, options}) {
+  constructor({value, session, services, options}) {
     super({
       value,
       session,
+      services,
       options: mc.patch({
         default: 'ru',
       }, options)
     })
   }
 
-  setValue(value) {
+  set(value) {
     if (mc.utils.type(value) === 'Object') {
       // Возможно переданы значения на нескольких языках
       // Нужно проверить ключи объекта, являются ли они кодами языков
@@ -36,7 +37,7 @@ class I18nProperty extends Property{
   }
 
   /**
-   * С учётом локали возвращает строчное значение
+   * С учётом локали возвращает строчное значение или объект всех переводов
    * @returns {*}
    */
   valueOf() {
@@ -60,11 +61,11 @@ class I18nProperty extends Property{
   mergeString(value ,kind){
     const key = acceptLanguage.get(this.session.acceptLang && this.session.acceptLang !=='all' ? this.session.acceptLang : this.options.default);
     const second = {[key]: value};
-    if (kind === 'merge' || kind === 'update'){
+    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE){
       return new I18nProperty({value: mc.merge(this.value, second), options: this.options, session: this.session});
     }
-    if (kind === 'patch'){
-      this.setValue(
+    if (kind === mc.KINDS.PATCH){
+      this.set(
         mc.patch(this.value, second)
       )
     }
@@ -72,11 +73,11 @@ class I18nProperty extends Property{
   }
 
   mergeObject(value, kind){
-    if (kind === 'merge' || kind === 'update'){
+    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE){
       return new I18nProperty({value: mc.merge(this.value, value), options: this.options, session: this.session});
     }
-    if (kind === 'patch'){
-      this.setValue(
+    if (kind === mc.KINDS.PATCH){
+      this.set(
         mc.patch(this.value, value)
       )
     }
@@ -84,12 +85,19 @@ class I18nProperty extends Property{
   }
 }
 
+/**
+ * Расширение библиотеки merge-change для слияния I18nProperty со строкой и простым объектом
+ */
 mc.addMerge('I18nProperty', 'String', (first, second, kind) => {
   return first.mergeString(second, kind);
 });
 
 mc.addMerge('I18nProperty', 'Object', (first, second, kind) => {
   return first.mergeObject(second, kind);
+});
+
+mc.addMerge('I18nProperty', 'I18nProperty', (first, second, kind) => {
+  return first.mergeObject(second.get(), kind);
 });
 
 module.exports = I18nProperty;

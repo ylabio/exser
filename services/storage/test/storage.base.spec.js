@@ -7,7 +7,7 @@ describe('Storage.base', () => {
 
   beforeAll(async () => {
     s.services = await require('../../init-spec');
-    s.storage = await s.services.getStorage({mode:'clear'});
+    s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
 
     data.session = {
@@ -17,6 +17,10 @@ describe('Storage.base', () => {
       },
       acceptLang: 'ru'
     };
+  });
+
+  beforeEach(async () => {
+    await s.storage.clearStorage();
   });
 
   test('Test types', async () => {
@@ -62,9 +66,9 @@ describe('Storage.base', () => {
       session: data.session,
     });
 
-    console.log(utils.toPlain(newObj));
+    console.log(utils.plain(newObj));
 
-    expect(utils.toPlain(newObj)).toMatchObject({
+    expect(utils.plain(newObj)).toMatchObject({
       _type: 'test',
       name: 'Test',
       status: 'new',
@@ -84,7 +88,6 @@ describe('Storage.base', () => {
         title: 'i18n'
       },
       session: data.session,
-      view: false
     });
 
     const chgObj = await s.objects.updateOne({
@@ -93,10 +96,9 @@ describe('Storage.base', () => {
         title: 'i18n'
       },
       session: data.session,
-      view: false
     });
 
-    expect(utils.toPlain(newObj)).toMatchObject({
+    expect(utils.plain(newObj)).toMatchObject({
       _type: 'test',
       name: 'Test',
       status: 'new',

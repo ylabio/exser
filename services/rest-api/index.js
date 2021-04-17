@@ -25,7 +25,12 @@ class RestAPI {
         resolve();
       });
     });
+    this.logStart(app);
     return app;
+  }
+  
+  logStart(app){
+    console.log(`REST API: ${this.config.url}, docs: ${this.config.url}/docs`);
   }
 
   async getApp(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {
@@ -322,16 +327,18 @@ class RestAPI {
    */
   getErrorHandler({atError}) {
     return async (err, req, res, next) => { // eslint-disable-line no-unused-vars
+
       if (this.config.log) {
         console.log(err instanceof errors.Validation ? JSON.stringify(err) : err);
       }
       let result = {error: this.getErrorResponse(err)};
 
+      res.status(parseInt(result.error.id || 500)).json(result);
+
       if (atError) {
         atError(result, err, req, res, next);
       }
 
-      res.status(parseInt(result.error.id || 500)).json(result);
       if (this.config.validateResponse) {
         this.validateResponse({
           req,

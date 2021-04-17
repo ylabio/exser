@@ -70,6 +70,26 @@ module.exports = {
     properties: require('./services/storage/properties'),
   },
 
+  logs: {
+    unsetFields: [
+      'password'
+    ]
+  },
+
+  dump: {
+    models: [],
+    filter: {isDeleted: false},
+    session: {acceptLang: 'all'},
+    schemaCreate: 'create',
+    schemaUpdate: 'update',
+    schemaView: 'view',
+    fields: '*,isDeleted',
+    uniqueFields: ['code'],
+    removeFields: ['_id'],
+    clear: false,
+    dir: './services/dump/data/'
+  },
+
   spec: {
     default: {
       servers: [

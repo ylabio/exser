@@ -1,7 +1,7 @@
 const escapeStringRegexp = require('escape-string-regexp');
 const ObjectID = require('mongodb').ObjectID;
 const moment = require('moment');
-const objectUtils = require('./../object-utils');
+const mc = require('merge-change');
 
 const queryUtils = {
 
@@ -117,7 +117,7 @@ const queryUtils = {
       let result = {};
       for (let key of keys) {
         if (key.substr(0, 1) === '!') {
-          result[key.substr(1)] = 0;
+          result[key.substr(1)] = false;
         } else {
           result[key] = queryUtils.parseFieldIgnore(object[key]);
         }
@@ -130,27 +130,22 @@ const queryUtils = {
   /**
    * Парсер форматированной строки, перечисляющей поля для выборки
    * @param fieldsString String
-   * @return Object
+   * @return {Object|Boolean}
    */
   parseFields: (fieldsString) => {
-    if (fieldsString === 1 || !fieldsString) {
-      return {'*': 1};
-    }
-    if (fieldsString && typeof fieldsString === 'object') {
+    const type = typeof fieldsString;
+    // Если объект, то считаем преобразование уже выполнено
+    if (fieldsString && type === 'object') {
       return fieldsString;
     }
-    if (typeof fieldsString !== 'string') {
-      return {'*': 1};
+    // Если не строка или пустая строка, то всегда true
+    if (type !== 'string' || fieldsString === '') {
+      return true;
     }
-    // let formatted = fieldsString.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([,$)}])/uig, '"$1":1$2');
-    // formatted = formatted.replace(/["'`]?([!:a-z0-9_*-.]+)["'`]?\s*([({])/uig, '"$1":{');
-    // formatted = '{' + formatted.replace(/\)/g, '}') + '}';
-
-    let formatted = fieldsString.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*(,|$|\)|\})/uig, '"$1":1$2');
-    //console.log(formatted);
-    formatted = formatted.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*(\(|\{)/uig, '"$1":{');
+    // Преобразование строки в объект
+    let formatted = fieldsString.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*(,|$|\)|\})/uig, '"$1":true$2');
+    formatted = formatted.replace(/["'`]?([^"'`()\s,{}]+)["'`]?\s*([({])/uig, '"$1":{');
     formatted = '{' + formatted.replace(/\)/g, '}') + '}';
-    //console.log(formatted);
     try {
       return queryUtils.parseFieldIgnore(JSON.parse(formatted));
     } catch (e) {
@@ -159,15 +154,246 @@ const queryUtils = {
   },
 
   inFields: (fields, prop, strick = false) => {
-    const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
+    fields = ((typeof fields === 'string') ? queryUtils.parseFields(fields) : fields) || {};
     // @todo проверка в *
-    return objectUtils.get(obj || {}, prop, false);
+    return mc.utils.get(fields, prop, false);
   },
 
   setField: (fields, name, value) => {
     const obj = (typeof fields === 'string') ? queryUtils.parseFields(fields) : fields;
     obj[name] = value;
     return obj;
+  },
+
+  loadByFields: async ({
+                         object,
+                         fields,
+                         depth = {},
+                         limit = {},
+                         defaultValue = undefined,
+                         typeField = '_type',
+                         parentFields = undefined,
+                         currentPath = '',
+                       }) => {
+    fields = queryUtils.parseFields(fields);
+    // Возврат всего значения в простом формате
+    if (fields === true) {
+      return object; // отдаём как есть
+    }
+    if (fields === false) {
+      return undefined;
+    }
+    // Ссылка на родительский шаблон
+    let isRecursive = false;
+    if (fields['^']) {
+      // Добавляем поля родительского шаблона взамен ^
+      fields = mc.merge(fields, {
+        $set: parentFields,
+        $unset: ['^']
+      });
+      // Ограничение глубины вложенности
+      if (currentPath in depth && depth[currentPath] !== '*') {
+        depth = mc.merge({}, depth);
+        depth[currentPath]--;
+        if (depth[currentPath] < 0) {
+          return undefined;
+        }
+      }
+      // Признак нужен, чтобы не менять текущий путь на свойство
+      isRecursive = true;
+    }
+    // Возможность подгрузить объект, если есть метод load()
+    const canLoad = (object && typeof object.load === 'function');
+    let objectLoad;
+    // Перебираем поля, чтобы добавить их или удалить
+    let $preset = {};
+    let $set = {};
+    let $unset = [];
+    if (object) {
+      const fieldNames = Object.keys(fields);
+      for (const fieldName of fieldNames) {
+        let [type, name] = fieldName.split(':');
+        if (!name) {
+          name = type;
+          type = null;
+        }
+        if (!type || object[typeField] === type) {
+          if (fields[name] === false) {
+            // Исключение свойства
+            $unset.push(name);
+          } else if (name === '*') {
+            // Предустанавливаем все возможные свойства
+            $set = mc.utils.plain(object);
+            if (canLoad) {
+              // Все свойства из подгруженного объекта
+              if (!objectLoad) objectLoad = await object.load();
+              $preset = mc.utils.plain(objectLoad);
+            }
+          } else {
+            // Если нет свойства в object
+            if (!(name in object)) {
+              // Подгружаем объект, чтобы от туда попробовать взять
+              if (canLoad) {
+                if (!objectLoad) objectLoad = await object.load();
+              }
+              // Если нет objectLoad или в objectLoad нет свойства, то установка defaultValue
+              if (!objectLoad || !(name in objectLoad)) {
+                if (defaultValue !== undefined) $set[name] = defaultValue;
+              } else {
+                // свойство обнаружилось
+                $set[name] = await queryUtils.loadByFields({
+                  object: objectLoad[name],
+                  fields: fields[fieldName],
+                  defaultValue,
+                  parentFields: fields,
+                  depth,
+                  limit,
+                  currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+                });
+              }
+            } else {
+              if (Array.isArray(object[name])) {
+                currentPath = isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name);
+                let limitCnt = (currentPath in limit && limit[currentPath]!=='*') ? limit[currentPath] : Infinity;
+                $set[name] = [];
+                for (let item of object[name]) {
+                  if (limitCnt < 1) break;
+                  const fieldValue = await queryUtils.loadByFields({
+                    object: item,
+                    fields: fields[fieldName],
+                    defaultValue,
+                    parentFields: fields,
+                    depth,
+                    limit,
+                    currentPath,
+                  });
+                  if (fieldValue !== undefined) {
+                    $set[name].push(fieldValue);
+                    limitCnt--;
+                  }
+                }
+              } else {
+                const fieldValue = await queryUtils.loadByFields({
+                  object: object[name],
+                  fields: fields[fieldName],
+                  defaultValue,
+                  parentFields: fields,
+                  depth,
+                  limit,
+                  currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+                });
+                if (fieldValue !== undefined) {
+                  $set[name] = fieldValue;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return mc.update($preset, {$set, $unset});
+
+    // // Иначе fields содержит перечень полей или по крайней мере поле-шаблон *
+    // // Нужно ли подгружать объект?
+    // // Если есть * то нужно и подгрузить объект и добавить все его свойства в результат
+    // //  но не нужно обрабатывать в plain вложенность, так как возможны уточнения для свойств
+    // // Если свойство добавлено из-за * и после не указано вложенность для него, то
+    //
+    // // Подгружался ли объекта
+    // //let rel = undefined;
+    // let isLoad = false;
+    // const canLoad = (object && typeof object.load === 'function');
+    // let result = {};
+    // if ('*' in fields) {
+    //   result = mc.utils.plain(object);
+    //   if (!isLoad && canLoad)  {
+    //     rel = await object.load();
+    //     isLoad = true;
+    //     result = mc.merge(mc.utils.plain(rel), result);
+    //   }
+    //   result = mc.merge(rel, mc.utils.plain(object));
+    //   // Клонирование fields с удалением *
+    //   fields = mc.merge(fields, {$unset:['*']});
+    // }
+    // // Перебираем поля, чтобы добавить их или удалить
+    // const fieldNames = Object.keys(fields);
+    // for (const fieldName of fieldNames) {
+    //   // Исключение поля
+    //   if (fields[fieldName] === false){
+    //     if (fieldName in result){
+    //       delete result[fieldName];
+    //     }
+    //   } else {
+    //     // Попытка подгрузить объект, если нет желаемого поля
+    //     if (!(fieldName in object)) {
+    //       if (!isLoad && canLoad) {
+    //         await object.load();
+    //       }
+    //     }
+    //   }
+    // }
+    //
+    //
+    // // Подгрузка свойств объекта, если есть метод load()
+    // if (object && typeof object.load === 'function') {
+    //   // Если нет полей в fields, то подгружать не будем, но нужно лучше как-то сделать
+    //   if (typeof fields === 'object') {
+    //     await object.load();
+    //   }
+    // }
+    // if (fields === true) {
+    //   return mc.utils.plain(object);
+    // } else {
+    //   // В простое значение первый уровень вложенности для последующей обработки свойств
+    //   object = mc.utils.plain(object, false);
+    // }
+    // //let result = {};
+    // // Если есть *, то по умолчанию берем все поля.  Далее возможны исключение полей
+    // if ('*' in fields) {
+    //   result = object;//mc.merge(object, {});
+    // }
+    // const keys = Object.keys(fields);
+    // let isLoaded = false;
+    // for (const key of keys) {
+    //   let inner;
+    //   if (key in object) {
+    //     try {
+    //       const type = mc.utils.type(object[key]);
+    //       if (type === 'Array') {
+    //         result[key] = [];
+    //         for (let item of object[key]) {
+    //           inner = await queryUtils.loadByFields({
+    //             object: item,
+    //             fields: fields[key]
+    //           });
+    //           result[key].push(inner);
+    //         }
+    //       } else if (type === 'Object' && mc.utils.type(fields[key]) === 'Object') {
+    //         // Вложенный объект
+    //         inner = await queryUtils.loadByFields({
+    //           object: object[key],
+    //           fields: fields[key]
+    //         });
+    //         // Исключение свойств
+    //         const subKeys = Object.keys(fields[key]);
+    //         for (const subKey of subKeys) {
+    //           if (fields[key][subKeys] === false && (subKey in inner)) {
+    //             delete inner[subKeys];
+    //           }
+    //         }
+    //         result[key] = inner;
+    //       } else {
+    //         result[key] = object[key];
+    //       }
+    //     } catch (e) {
+    //       console.log(key, object, fields);
+    //       throw e;
+    //     }
+    //   } else if (typeof notExistSet !== 'undefined' && key !== '*') {
+    //     result[key] = notExistSet;
+    //   }
+    //   return result;
+    // }
   },
 
   /**
@@ -475,7 +701,7 @@ const queryUtils = {
           );
         if (typeof filterMap[key] === 'function') {
           const query = filterMap[key](value, key, searchFields);
-          if (typeof query !== 'undefined'){
+          if (typeof query !== 'undefined') {
             result.push(query);
           }
         } else if (typeof value !== 'undefined') {
@@ -619,7 +845,7 @@ const queryUtils = {
         };
       case 'flex':
         // Формирование условия по спецсимволам в значении
-        return queryUtils.parseConditionFlex(value, field, options.types, options.trim);
+        return queryUtils.parseConditionFlex(value, field, options.types, options.trim, options.flexDefault);
       default:
         throw new Error('Unsupported cond = "' + options.cond + '"');
     }
@@ -630,8 +856,10 @@ const queryUtils = {
    * @param condition {String}
    * @param field {String}
    * @param types (String|Array} Типы значения
+   * @param trim
+   * @param [defaultCond] {string} Операция по умолчанию, если она не выявлена в значении
    */
-  parseConditionFlex: (condition, field, types, trim) => {
+  parseConditionFlex: (condition, field, types, trim, defaultCond = '') => {
     const type = (value) => queryUtils.type(value, types, trim);
     if (condition.substr(0, 1) === '"') {
       return {[field]: {$eq: type(condition.substr(1))}};
@@ -643,7 +871,7 @@ const queryUtils = {
         itemsCond = '$or';
       } else {
         // AND
-        items = condition.split('+');
+        items = condition.split('&');
         itemsCond = '$and';
       }
 
@@ -676,6 +904,9 @@ const queryUtils = {
           return {$ne: type(item)};
         }
         const match = item.match(/^(\*|\^|%|\/|<{1,2}|>{1,2})?(.+)/);
+        if (!match[1]) {
+          match[1] = defaultCond;
+        }
         switch (match[1]) {
           case '*':
             // Вхождение в строку

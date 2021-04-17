@@ -10,7 +10,7 @@ describe('Storage.common', () => {
   beforeAll(async () => {
     s.services = await require('../../init-spec');
     // s.test = await s.services.getTest();
-    s.storage = await s.services.getStorage({mode:'clear'});
+    s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
 
     data.session = {
@@ -19,6 +19,10 @@ describe('Storage.common', () => {
         _type: 'user'
       }
     };
+  });
+
+  beforeEach(async () => {
+    await s.storage.clearStorage();
   });
 
   test('Добавление/удаление объекта', async () => {

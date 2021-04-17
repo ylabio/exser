@@ -32,7 +32,7 @@ describe('Storage.order', () => {
     let index = 1;
     for (const body of bodyList) {
       const result = await s.objects.createOne({body, session: data.session});
-      expect(utils.toPlain(result)).toMatchObject({
+      expect(utils.plain(result)).toMatchObject({
         _type: 'test',
         name: `Test${index}`,
         order1: index,
@@ -56,7 +56,7 @@ describe('Storage.order', () => {
     let indexRev = 1;
     let index = 1;
     for (const item of list) {
-      expect(utils.toPlain(item)).toMatchObject({
+      expect(utils.plain(item)).toMatchObject({
         name: `Test${index}`,
         order1: indexRev,
       });
@@ -82,7 +82,7 @@ describe('Storage.order', () => {
     // data from mongo
     let list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.toPlain(list[i])).toMatchObject({
+      expect(utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
         order1: bodyList[i].order1,
       });
@@ -106,7 +106,7 @@ describe('Storage.order', () => {
     // data from mongo
     let list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.toPlain(list[i])).toMatchObject({
+      expect(utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
         order1: bodyList[i]._expect,
       });
@@ -132,7 +132,7 @@ describe('Storage.order', () => {
     // test init
     let list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.toPlain(list[i])).toMatchObject({
+      expect(utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
         order1: bodyList[i]._expect,
       });
@@ -145,7 +145,7 @@ describe('Storage.order', () => {
       session: data.session,
     });
 
-    expect(utils.toPlain(changedTest2)).toMatchObject({
+    expect(utils.plain(changedTest2)).toMatchObject({
       name: 'Test2',
       order1: 8,
     });
@@ -164,7 +164,7 @@ describe('Storage.order', () => {
     // test all
     list = await s.objects.findMany({sort: {'_id': 1}});
     for (let i = 0; i < bodyList.length; i++) {
-      expect(utils.toPlain(list[i])).toMatchObject({
+      expect(utils.plain(list[i])).toMatchObject({
         name: need[i].name,
         order1: need[i].order1,
       });

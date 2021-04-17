@@ -8,7 +8,7 @@ class Services {
   constructor(){
     this.configs = {};
     this.list = [];
-    this.configure(path.join(__dirname, '../configs.js'), path.join(__dirname,'../configs.local.js'));
+    this.configure([path.join(__dirname, '../configs.js'), path.join(__dirname,'../configs.local.js')]);
   }
 
   /**
@@ -16,27 +16,51 @@ class Services {
    * @returns {Promise<Services>}
    */
   async init(configs) {
-    this.configs = this.configure(configs);
+    this.configure(configs);
     return this;
   }
 
   /**
-   * @param configsList {Object|String} Options or filenames with options
+   * Запуск сервисов
+   * @param commands {Array<{name: {String}, params: {Object}}>} Массив команд с названием и параметрами запускаемого сервиса
+   * @returns {Promise<unknown[]>}
+   */
+  async start(commands){
+    if (!Array.isArray(commands)) commands = [commands];
+    let started = [];
+    for (let command of commands){
+      const service = await this.get(command.name);
+      if (typeof service.start === 'function') {
+        started.push(service.start(command.params));
+      } else {
+        console.log(`Service "${command.name}" has no "start" method`);
+      }
+    }
+    if (started.length === 0){
+      console.log('Service name not defined');
+    }
+    // await all started service
+    return Promise.all(started);
+  }
+
+  /**
+   *
+   * @param configs {Object|String} Options or filenames with options
    * @returns {Services}
    */
-  configure(...configsList){
-    if (configsList) {
-      for (let i = 0; i < configsList.length; i++) {
-        if (typeof configsList[i] === 'string') {
-          const filename = path.resolve(configsList[i]);
+  configure(configs){
+    if (configs) {
+      for (let i = 0; i < configs.length; i++) {
+        if (typeof configs[i] === 'string') {
+          const filename = path.resolve(configs[i]);
           if (!fs.existsSync(filename)) {
             fs.writeFileSync(filename, 'module.exports = {};\n');
             console.log(`A configuration file "${filename}" was created`);
           }
-          configsList[i] = require(filename);
+          configs[i] = require(filename);
         }
-        if (typeof configsList === 'object') {
-          this.configs = objectUtils.merge(this.configs, configsList[i]);
+        if (typeof configs === 'object') {
+          this.configs = objectUtils.merge(this.configs, configs[i]);
         }
       }
     }
@@ -92,7 +116,6 @@ class Services {
    * @return {Promise<Tasks>}
    */
   async getTasks(params) {
-
     return this.import('./tasks', params);
   }
 
@@ -102,11 +125,27 @@ class Services {
   async getExample(params) {
     return this.import('./example', params);
   }
-}
 
-process.on('unhandledRejection', function (reason/*, p*/) {
-  console.error(reason);
-  process.exit(1);
-});
+  /**
+   * @returns {Promise<Logs>}
+   */
+  async getLogs(params) {
+    return this.import(__dirname + '/logs', params);
+  }
+
+  /**
+   * @returns {Promise<Sessions>}
+   */
+  async getSessions(params) {
+    return this.import(__dirname + '/sessions', params);
+  }
+
+  /**
+   * @returns {Promise<Dump>}
+   */
+  async getDump(params) {
+    return this.import(__dirname + '/dump', params);
+  }
+}
 
 module.exports = Services;

@@ -5,6 +5,7 @@ const object = require('./../object');
  * @param title {String} Название модели для документации
  * @param collection {String} Название коллекции в mongodb
  * @param [indexes] {Object.<Array>} Индекс в mongodb. Указываются в формате mongodb. Пример: {name: [{field: 1}, {'unique': true, partialFilterExpression: {field: {$exists: true}}}]
+ * @param [options] {Object} Опции коллекции mongodb
  * @param [maxProperties] {number} Максимальное количество свойств
  * @param [minProperties] {number} Минимальная количество свойств
  * @param [properties] {Object.<Object>} Дополнительные свойства отношения. Ключ объекта - название свойства. Значение - схема свойства
@@ -24,6 +25,7 @@ module.exports = function ({
                              title,
                              collection,
                              indexes = {},
+                             options = {},
                              maxProperties,
                              minProperties,
                              properties = {},
@@ -39,8 +41,10 @@ module.exports = function ({
                            }) {
   return object({
     title,
+    // Свойства для mongodb коллекции
     collection,
     indexes,
+    options,
     // Базовые свойства объекта
     maxProperties,
     minProperties,

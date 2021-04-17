@@ -1,19 +1,32 @@
 const mc = require('merge-change');
 
+/**
+ * Абстрактный класс свойства
+ * Используется для свойств, требующих особой логики обработки до и после сохранения в базу данных
+ */
 class Property {
 
-  constructor({value, options, session}) {
-    this.options = options;
+  constructor({value, session, services, options}) {
     this.session = session;
-    this.setValue(value);
+    this.services = services;
+    this.options = options;
+    this.set(value);
   }
 
   /**
    * Установка значения целиком
    * @param value
    */
-  setValue(value){
+  set(value){
     this.value = value;
+  }
+
+  /**
+   * Возврат значения
+   * @returns {*}
+   */
+  get(){
+    return this.value;
   }
 
   /**
@@ -43,29 +56,25 @@ class Property {
 
   /**
    * Логика перед сохранением объекта с этим свойством
-   * @param session
-   * @param object
-   * @param objectPrev
-   * @param path
-   * @param prev
-   * @param model
-   * @param services
+   * @param object Объект с новыми свойствами
+   * @param objectPrev Старый объект
+   * @param path Путь на свойство
+   * @param prev Предыдущее значение
+   * @param model Storage модель
    * @returns {Promise<void>}
    */
-  async beforeSave({session, object, objectPrev, path, prev, model, services}){ }
+  async beforeSave({object, objectPrev, path, prev, model}){ }
 
   /**
    * логика после сохранения объекта с этим свойством
-   * @param session
-   * @param object
-   * @param objectPrev
-   * @param path
-   * @param prev
-   * @param model
-   * @param services
+   * @param object Объект с новыми свойствами
+   * @param objectPrev Старый объект
+   * @param path Путь на свойство
+   * @param prev Предыдущее значение
+   * @param model Storage модель
    * @returns {Promise<void>}
    */
-  async afterSave({session, object, objectPrev, path, prev, model, services}){}
+  async afterSave({object, objectPrev, path, prev, model}){}
 
   /**
    * Выбор свойство по пути на него.

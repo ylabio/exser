@@ -1,18 +1,14 @@
 const Services = require('./services');
-const args = process.argv.slice(2);
+const {parseCommands} = require('./utils/array-utils');
 
 (async () => {
-  const services = new Services().configure('configs.js', 'configs.start.js', 'configs.local.js');
-  if (args.length && args[0] === '--task') {
-    // Управление задачами
-    const tasks = await services.getTasks();
-    await tasks.start(...args.slice(1));
-  } else {
-    // API сервер
-    const restApi = await services.getRestApi();
-    await restApi.start();
-    console.log(`REST API: ${restApi.config.url}, docs: ${restApi.config.url}/docs`);
-  }
+  // Configure service manager
+  const services = new Services();
+  await services.init(['configs.js', 'configs.local.js']);
+  // Start some services by params from CLI
+  // @example > node index.js rest-api --port:8080
+  // @example await services.start([{name: rest-api, params: {port: 8080}}]);
+  await services.start(parseCommands(process.argv.slice(2)));
 })();
 
 process.on('unhandledRejection', function (reason/*, p*/) {

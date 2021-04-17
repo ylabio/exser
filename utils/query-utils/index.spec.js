@@ -4,45 +4,54 @@ const ObjectID = require('mongodb').ObjectID;
 describe('Parse fields parameter', () => {
   test('parse one field', () => {
     let fields = queryUtils.parseFields('name');
-    expect(fields).toEqual({name: 1});
+    expect(fields).toEqual({name: true});
   });
 
   test('parse empty field', () => {
-    let fields = queryUtils.parseFields('');
-    expect(fields).toEqual(undefined);
+    expect(queryUtils.parseFields('')).toEqual(true);
+    expect(queryUtils.parseFields(true)).toEqual(true);
+    expect(queryUtils.parseFields(1)).toEqual(true);
+  });
+
+  test('parse *', () => {
+    expect(queryUtils.parseFields('*')).toEqual({'*': true});
+    expect(queryUtils.parseFields({'*': true})).toEqual({'*': true});
   });
 
   test('parse two plain fields', () => {
     let fields = queryUtils.parseFields('name1, name2');
-    expect(fields).toEqual({name1: 1, name2: 1});
+    expect(fields).toEqual({name1: true, name2: true});
   });
 
   test('parse sub fields', () => {
     let fields = queryUtils.parseFields('name1, name2(object(property, _id))');
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse sub fields with {}}', () => {
     let fields = queryUtils.parseFields('name1, name2{object{property, _id}}');
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse !', () => {
     let fields = queryUtils.parseFields('!name1, !name2(object(!property, _id))');
-    expect(fields).toEqual({name1: 0, name2: 0});
+    expect(fields).toEqual({name1: false, name2: false});
   });
 
   test('parse with namespaces', () => {
     let fields = queryUtils.parseFields('news:name, user-admin:name.2(object(some:property, _id))');
     expect(fields).toEqual({
-      "news:name": 1,
-      "user-admin:name.2": {object: {"some:property": 1, _id: 1}}
+      "news:name": true,
+      "user-admin:name.2": {object: {"some:property": true, _id: true}}
     });
   });
 
   test('parse with spec symbols', () => {
     let fields = queryUtils.parseFields('^%$+*name1, #@*-($1,_!@#$%^&*=+~?<>:;|/\\\\-)');
-    expect(fields).toEqual({'^%$+*name1': 1, '#@*-': {'$1': 1, '_!@#$%^&*=+~?<>:;|/\\-': 1}});
+    expect(fields).toEqual({
+      '^%$+*name1': true,
+      '#@*-': {'$1': true, '_!@#$%^&*=+~?<>:;|/\\-': true}
+    });
   });
 
   test('parse multiple sub fields', () => {
@@ -50,9 +59,9 @@ describe('Parse fields parameter', () => {
       'name1, name2(object(property, _id)), name3(object(property, _id))'
     );
     expect(fields).toEqual({
-      name1: 1,
-      name2: {object: {property: 1, _id: 1}},
-      name3: {object: {property: 1, _id: 1}}
+      name1: true,
+      name2: {object: {property: true, _id: true}},
+      name3: {object: {property: true, _id: true}}
     });
   });
 
@@ -61,9 +70,9 @@ describe('Parse fields parameter', () => {
       'name1, name2{object{property, _id}}, name3{object{property, _id}}'
     );
     expect(fields).toEqual({
-      name1: 1,
-      name2: {object: {property: 1, _id: 1}},
-      name3: {object: {property: 1, _id: 1}}
+      name1: true,
+      name2: {object: {property: true, _id: true}},
+      name3: {object: {property: true, _id: true}}
     });
   });
 
@@ -71,7 +80,7 @@ describe('Parse fields parameter', () => {
     let fields = queryUtils.parseFields(
       '  name1  ,   name2 (   object(    property, _id  ) )       '
     );
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse with \n', () => {
@@ -80,17 +89,17 @@ describe('Parse fields parameter', () => {
       '   name2 (   object(    property, _id  ' +
       ') )       '
     );
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse without spaces', () => {
     let fields = queryUtils.parseFields('name1,name2(object(property,_id))');
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse with quotes and spaces', () => {
     let fields = queryUtils.parseFields('"name1", "name2" (  "object"("property","_id"))');
-    expect(fields).toEqual({name1: 1, name2: {object: {property: 1, _id: 1}}});
+    expect(fields).toEqual({name1: true, name2: {object: {property: true, _id: true}}});
   });
 
   test('parse bad query', () => {
@@ -103,8 +112,35 @@ describe('Parse fields parameter', () => {
 
   test('* query', () => {
     let fields = queryUtils.parseFields('*,profile(*)');
-    expect(fields).toEqual({'*': 1, profile: {'*': 1}});
+    expect(fields).toEqual({'*': true, profile: {'*': true}});
   });
+
+  test('typed props', () => {
+    let fields = queryUtils.parseFields('relative(user:surname, product:price(value, unit), product:title)');
+    console.log(fields);
+    expect(fields).toEqual({
+      relative: {
+        'user:surname': true,
+        'product:price': {
+          value: true,
+          unit: true
+        },
+        'product:title': true
+      }
+    });
+  });
+
+  test('recursive props', () => {
+    let fields = queryUtils.parseFields('comments(text, children(^))');
+    expect(fields).toEqual({
+      comments: {
+        text: true,
+        children: {
+          '^': true
+        }
+      }
+    });
+  })
 });
 
 
@@ -461,3 +497,210 @@ describe('Make filter', () => {
     });
   });
 });
+
+
+describe('Load by fields', () => {
+  const mc = require('merge-change');
+  let data = {};
+
+  class Avatar {
+    constructor() {
+      this.value = {
+        _id: 100,
+        _type: 'avatar',
+        primary: true
+      }
+    }
+
+    toJSON() {
+      return this.value;
+    }
+
+    async load() {
+      return {
+        _id: 100,
+        url: 'http://files.com/avatar.png',
+        size: 2345
+      };
+    }
+  }
+
+  beforeAll(async () => {
+    data.object = {
+      _id: 1,
+      name: 'Name',
+      profile: {
+        surname: 'Surname',
+        avatar: new Avatar()
+      },
+      list: [
+        {_type: 'rating', rank: 100, date: 1},
+        {_type: 'vote', value: 300, date: 2}
+      ]
+    };
+    data.objectDeep = {
+      _id: 1,
+      comments: [
+        {
+          _id: 11, text: 'text1', date: 1, comments: [
+            {_id: 111, text: 'text11', date: 1, comments: []},
+            {
+              _id: 112, text: 'text12', date: 2, comments: [
+                {_id: 1121, text: 'text1121', date: 1, comments: []},
+                {_id: 1122, text: 'text1122', date: 2},
+                {_id: 1123, text: 'text1123', date: 3},
+              ]
+            },
+            {_id: 113, text: 'text13', date: 3, comments: []},
+          ]
+        },
+        {_id: 12, text: 'text2', date: 2},
+        {_id: 13, text: 'text3', date: 3},
+      ]
+    };
+  });
+
+  test('_id', async () => {
+    let result = await queryUtils.loadByFields({object: data.object, fields: '_id'});
+    expect(result).toStrictEqual({
+      _id: 1
+    })
+  });
+
+  test('_id,none', async () => {
+    let result = await queryUtils.loadByFields({object: data.object, fields: '_id,none'});
+    expect(result).toStrictEqual({
+      _id: 1
+    })
+  });
+
+  test('_id,none with default', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.object,
+      fields: '_id,none',
+      defaultValue: null
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      none: null
+    })
+  });
+
+  test('*', async () => {
+    let result = await queryUtils.loadByFields({object: data.object, fields: '*'});
+    expect(result).toStrictEqual({
+      _id: 1,
+      name: 'Name',
+      profile: {
+        surname: 'Surname',
+        avatar: {_id: 100, _type: 'avatar', primary: true}
+      },
+      list: [{_type: 'rating', rank: 100, date: 1}, {_type: 'vote', value: 300, date: 2}]
+    })
+  });
+
+  test('*,!profile,!list', async () => {
+    let result = await queryUtils.loadByFields({object: data.object, fields: '*,!profile,!list'});
+    expect(result).toStrictEqual({
+      _id: 1,
+      name: 'Name',
+    })
+  });
+
+  test('*,profile(avatar(*))', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.object,
+      fields: '*,profile(avatar(*))'
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      name: 'Name',
+      profile: {
+        avatar: {
+          _id: 100,
+          url: 'http://files.com/avatar.png',
+          size: 2345,
+          _type: 'avatar',
+          primary: true
+        }
+      },
+      list: [{_type: 'rating', rank: 100, date: 1}, {_type: 'vote', value: 300, date: 2}]
+    });
+  });
+
+  test('typed', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.object,
+      fields: '_id,list(rating:rank, vote:value, date)'
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      list: [{rank: 100, date: 1}, {value: 300, date: 2}]
+    });
+  });
+
+  test('list with limit', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.object,
+      fields: '_id,list(*)',
+      limit: {list: 1}
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      list: [{_type: 'rating', rank: 100, date: 1}]
+    });
+  });
+
+  test('recursive', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.objectDeep,
+      fields: '_id,comments(text, comments(^))'
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      comments: [
+        {
+          text: 'text1',
+          comments: [
+            {text: 'text11', comments: []},
+            {
+              text: 'text12', comments: [
+                {text: 'text1121', comments: []},
+                {text: 'text1122'},
+                {text: 'text1123'}
+              ]
+            },
+            {text: 'text13', comments: []}
+          ]
+        },
+        {text: 'text2'},
+        {text: 'text3'}
+      ]
+    });
+  });
+
+  test('recursive with depth', async () => {
+    let result = await queryUtils.loadByFields({
+      object: data.objectDeep,
+      fields: '_id,comments(text, comments(^))',
+      depth: {
+        'comments.comments': 1
+      }
+    });
+    expect(result).toStrictEqual({
+      _id: 1,
+      comments: [
+        {
+          text: 'text1',
+          comments: [
+            {text: 'text11', comments: []},
+            {text: 'text12', comments: []},
+            {text: 'text13', comments: []}
+          ]
+        },
+        {text: 'text2'},
+        {text: 'text3'}
+      ]
+    });
+  });
+})

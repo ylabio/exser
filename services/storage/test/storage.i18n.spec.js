@@ -41,7 +41,7 @@ describe('Storage.i18n', () => {
     const result = await s.spec.validate('#/components/schemas/test.i18n', {
       name: 'Name',
     }); // Валидация без сессии, код языка должен установиться по умолчанию
-    expect(utils.toPlain(result)).toStrictEqual({
+    expect(utils.plain(result)).toStrictEqual({
       name: {
         de: 'Name'
       },
@@ -53,7 +53,7 @@ describe('Storage.i18n', () => {
     const result2 = await s.spec.validate('#/components/schemas/test.i18n', {
       name: prop,
     }, context);
-    expect(utils.toPlain(result2)).toStrictEqual({
+    expect(utils.plain(result2)).toStrictEqual({
       name: {
         ru: 'Some value'
       },
@@ -67,7 +67,7 @@ describe('Storage.i18n', () => {
         xxxx: {x: 'любая фигня должна отсекаться'}
       },
     }, context);
-    expect(utils.toPlain(result3)).toStrictEqual({
+    expect(utils.plain(result3)).toStrictEqual({
       name: {
         ru: 'Русс',
         en: 'Англ',
@@ -89,7 +89,7 @@ describe('Storage.i18n', () => {
       i18n3: null
     }
     const result = await s.objects.createOne({body, session: data.session});
-    expect(utils.toPlain(result)).toMatchObject({
+    expect(utils.plain(result)).toMatchObject({
       name: 'Test',
       i18n1: {ru: 'String'},
       i18n2: {en: 'StringEN', de: 'StringDE'},
@@ -115,16 +115,12 @@ describe('Storage.i18n', () => {
 
     const result = await s.objects.updateOne({filer: {_id: object._id}, body: updateBody, session: data.session});
 
-    expect(utils.toPlain(result)).toMatchObject({
+    expect(utils.plain(result)).toMatchObject({
       name: 'TestChange',
       i18n1: {ru: 'StringNew'},
       i18n2: {en: 'StringEN2', de: 'StringDE', ru: 'StringRU'}, // added value
       i18n3: {ru: 'SET'}
     });
 
-    console.log(result);
-
   })
-
-
 });

@@ -2,6 +2,7 @@ const Model = require('../model/index.js');
 const {errors} = require('../../../utils');
 const ObjectID = require('mongodb').ObjectID;
 const type = require('../../../utils/schema-utils');
+const mc = require('merge-change');
 
 /**
  * Для тестирования
@@ -9,7 +10,7 @@ const type = require('../../../utils/schema-utils');
 class Test extends Model {
 
   define() {
-    return this.spec.extend(super.define(), type.model({
+    return mc.merge(super.define(), type.model({
       title: 'Тестовая модель',
       collection: 'test',
       indexes: {
@@ -30,6 +31,13 @@ class Test extends Model {
         order1: type.order({}),
         order2: type.order({}),
         order3: type.order({}),
+
+        relCopy: type.rel({
+          description: 'Тест связи',
+          model: 'test',
+          copy: '_id, _type, name, i18n1',
+          search: 'name, i18n1'
+        }),
 
         // index: type.order({description: 'Порядковый номер'}),
         // owner: type.sessionUser({create: true, update: false, delete: false}),

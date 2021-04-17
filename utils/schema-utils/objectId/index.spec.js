@@ -8,6 +8,7 @@ describe('schema-utils.objectId', () => {
   beforeAll(async () => {
     s.services = await require('../../../services/init-spec');
     s.spec = await s.services.getSpec();
+    s.storage = await s.services.getStorage(); // нужно для регистрации objectId свойства в instance
     s.spec.set('#/components/schemas/model.objectId', {
       type: 'object',
       properties: {

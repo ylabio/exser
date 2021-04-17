@@ -16,7 +16,7 @@ const keywordMaker = function(spec, services){
       return function (data, {dataPath, rootData}) {
         const context = this;
         try{
-          mc.utils.set(rootData, dataPath, keywordMaker.exe(data, schema, context.session), false, '/');
+          mc.utils.set(rootData, dataPath, keywordMaker.exe(data, schema, context.session, services), false, '/');
           return true;
         } catch (e){
           return false;
@@ -57,9 +57,10 @@ keywordMaker.CLASS_NAMES = {
  * @param value
  * @param schema
  * @param session
+ * @param services
  * @returns {null|*}
  */
-keywordMaker.exe = function (value, schema, session = {}){
+keywordMaker.exe = function (value, schema, session = {}, services){
   const constructor = keywordMaker.CLASS_NAMES[schema.name] || keywordMaker.CLASS_NAMES[schema];
   if (!constructor) {
     throw new Error('Неизвестный конструктор');
@@ -74,7 +75,11 @@ keywordMaker.exe = function (value, schema, session = {}){
   }
   // Создание экземпляра, если значение ещё не является им
   if (!(value instanceof constructor)) {
-    value = new constructor({value, session, options: schema.options});
+    if (schema.options) {
+      value = new constructor({value, session, services, options: schema.options});
+    } else {
+      value = new constructor(value);
+    }
   }
   return value;
 }
