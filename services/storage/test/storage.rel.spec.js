@@ -60,8 +60,6 @@ describe('Storage.rel', () => {
       user: {_key: '1', _type: 'user'},
     });
     expect(utils.type(result2.user)).toBe('RelProperty');
-    console.log(result2);
-
   });
 
   test('Load related object', async () => {
