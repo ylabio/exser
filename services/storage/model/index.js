@@ -1,11 +1,12 @@
 const ObjectID = require('mongodb').ObjectID;
 const moment = require('moment');
-const {errors, queryUtils, objectUtils, stringUtils, schemaUtils} = require('../../../utils');
+const {errors, stringUtils} = require('../../../utils');
 const deepEqual = require('deep-equal');
 const type = require('../../../utils/schema-utils');
 const mc = require('merge-change');
+const Service = require('./../../service');
 
-class Model {
+class Model extends Service {
 
   /**
    * Название модели
@@ -37,8 +38,7 @@ class Model {
    * @returns {Promise.<Model>}
    */
   async init(config, services) {
-    this.config = config;
-    this.services = services;
+    await super.init(config, services);
     this.spec = await this.services.getSpec();
     this.storage = await this.services.getStorage();
     this.defined = this.define();
@@ -54,10 +54,17 @@ class Model {
       options: this.defined.options
     });
     // Схемы в спецификацию
-    this.spec.set(`#/components/schemas/${this.name()}`, this.defined);
+    this.spec.set(`#/components/schemas/storage.${this.name()}`, this.defined);
     // Кэш для выборки изменений
     this.changes = {};
     return this;
+  }
+
+  get schema() {
+    if (!this.defined) {
+      return this.define();
+    }
+    return this.defined;
   }
 
   /**
@@ -73,8 +80,8 @@ class Model {
       // Индексы коллекции mongodb.
       // @see https://docs.mongodb.com/manual/reference/method/db.collection.createIndex/#mongodb-method-db.collection.createIndex
       indexes: {
-        order: [{'order': 1}, {}], // нельзя делать уникальным из-за сдвигов при упорядочивании
-        key: [{_key: 1}, {'unique': true, partialFilterExpression: {_key: {$exists: true}}}],
+        // order: [{'order': 1}, {}], // нельзя делать уникальным из-за сдвигов при упорядочивании
+        // key: [{_key: 1}, {'unique': true, partialFilterExpression: {_key: {$exists: true}}}],
       },
       // Опции коллекции mongodb
       options: {},
@@ -82,13 +89,10 @@ class Model {
       properties: {
         _id: type.objectId({description: 'Идентификатор ObjectId'}),
         _type: type.string({description: 'Тип объекта', defaults: this.name()}),
-        _key: type.string({description: 'Дополнительный необязательный идентификатор'}),
-        order: type.order({description: 'Порядковый номер'}),
+        _deleted: type.boolean({description: 'Признак, удалён ли объект', defaults: false}),
         dateCreate: type.date({description: 'Дата и время создания'}),
         dateUpdate: type.date({description: 'Дата и время обновления'}),
-        isDeleted: type.boolean({description: 'Признак, удалён ли объект', defaults: false}),
-        isNew: type.boolean({description: 'Признак, новый ли объект', defaults: true}),
-        proto: type.rel({description: 'Прототип', model: [], tree: 'proto'}),
+        // proto: type.rel({description: 'Прототип', model: [], tree: 'proto'}),
       },
       required: []
     });
@@ -132,7 +136,6 @@ class Model {
       } else {
         result.push(object);
       }
-
       i++;
     }
     return result;
@@ -210,21 +213,19 @@ class Model {
    */
   async createOne({body, session, validate}) {
     try {
-      let object = mc.merge(body, {});
-      if (!body._type) {
-        body._type = this.name();
-      }
+      let object = {};
+      // Инициализация предопределенных свойств. (могут отсутствовать в пользовательской модели)
+      if ('_id' in this.defined.properties) object._id = new ObjectID();
+      if ('_type' in this.defined.properties) object._type = this.name();
+      if ('_deleted' in this.defined.properties) object._deleted = false;
+      if ('dateCreate' in this.defined.properties) object.dateCreate = new Date();
+      if ('dateUpdate' in this.defined.properties) object.dateUpdate = new Date();
+
+      // Клонирование и подмена значений  предопределенных свойств.
+      object = mc.merge(object, body);
+
       // Валидация по схеме
       let objectValid = await this.validate({object, session});
-
-      // Инициализация обязательных свойств, отсутствующих в схеме создания
-      objectValid._id = object._id ? ObjectID(object._id) : new ObjectID();
-      objectValid._type = this.name();
-      objectValid.isDeleted = 'isDeleted' in objectValid ? objectValid.isDeleted : false;
-      objectValid.isNew = 'isNew' in objectValid ? objectValid.isNew : true;
-      // @todo Удалить, когда будут перенесены свойства
-      objectValid.dateCreate = 'dateCreate' in objectValid ? objectValid.dateCreate : moment().toDate();
-      objectValid.dateUpdate = 'dateUpdate' in objectValid ? objectValid.dateUpdate : moment().toDate();
 
       // Обработка свойств-экземпляров перед кастомной валидацией и сохранением объекта
       await this.processPropertiesWithInstance({
@@ -254,7 +255,7 @@ class Model {
       // @todo Оповестить о создании объекта
 
       // Подготовка на вывод
-      return this.restoreInstances(object);
+      return this.restoreInstances(object); // result
     } catch (e) {
       throw errors.convert(e);
     }
@@ -274,7 +275,10 @@ class Model {
     }
     let _id = prev._id;
     try {
-      let object = mc.merge(prev, body);
+      let object = {};
+      if ('dateUpdate' in this.defined.properties) object.dateUpdate = new Date();
+      object = mc.merge(prev, object, body);
+
       let objectValid = await this.validate({object, prev, session});
 
       objectValid.dateUpdate = new Date();
@@ -346,26 +350,27 @@ class Model {
   async deleteOne({filter, session}) {
     return await this.updateOne({
       filter,
-      body: {isDeleted: true},
+      body: {_deleted: true},
       session
     });
   }
 
   /**
    * Пометка множества объектов признаком удаленный
+   * Возвращается количество удаленных (только тех что уще не были ранее удалены)
    * @param filter
    * @param object
    * @returns {Promise.<Object>}
    */
   async deleteMany({filter = {}, session}) {
-    filter = Object.assign({isDeleted: false}, filter);
+    filter = Object.assign({_deleted: false}, filter);
     let result = 0;
     let cursor = this.native.find(filter);
     while (await cursor.hasNext()) {
       const object = await cursor.next();
       await this.updateOne({
         filter: {_id: object._id},
-        body: {isDeleted: true},
+        body: {_deleted: true},
         session
       });
       result++;
@@ -437,7 +442,7 @@ class Model {
    * @returns {Promise<object>}
    */
   async validate({object, prev = null, session}) {
-    return this.spec.validate(`#/components/schemas/${this.name()}`, object, {session});
+    return this.spec.validate(`#/components/schemas/storage.${this.name()}`, object, {session});
   }
 
   /**

@@ -30,7 +30,7 @@ module.exports = function ({type, description = '', enums, constant, examples, e
   if (errors) {
     result.errors = errors;
   }
-  if (defaults) {
+  if (defaults !== undefined) {
     result.default = defaults;
   }
   return result;

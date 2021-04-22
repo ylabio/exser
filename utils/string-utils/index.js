@@ -35,7 +35,7 @@ const stringUtils = {
     return camelCase(value);
   },
 
-  tuUpperFirst(value){
+  toUpperFirst(value){
     return upperFirst(value);
   }
 };

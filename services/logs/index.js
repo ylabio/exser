@@ -1,16 +1,15 @@
 const mc = require('merge-change');
+const Service = require("../service");
 /**
  * Сервис логирования
  * Используется для логирования логических шагов с учётом сессии
  */
-class Logs {
+class Logs extends Service {
 
-  async init(config, services) {
-    this.config = config;
-    this.services = services;
+  constructor() {
+    super();
     this.lastLogCode = null;
     this.lastLog = {rn: true};
-    return this;
   }
 
   log({text, data, session, level = '', rn = true}){

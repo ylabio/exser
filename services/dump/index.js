@@ -3,17 +3,17 @@ const path = require('path');
 const mc = require('merge-change');
 const os = require('os');
 const readline = require('readline');
+const Service = require("../service");
 
 /**
  * Сервис экспорта данных в файлы дампа и импорта из этих файлов
  * Используется для экспорта данных, например справочников, чтобы их восстанавливать при инициализации приложения
  * Формат файла дампа - строки json объектов для потоковой обработки.
  */
-class Dump {
+class Dump extends Service {
 
   async init(config, services) {
-    this.config = config;
-    this.services = services;
+    await super.init(config, services);
     this.storage = await this.services.getStorage();
     return this;
   }

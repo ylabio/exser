@@ -1,10 +1,10 @@
 const MongoDB = require('mongodb');
+const Service = require("../service");
 
-class Storage {
+class Storage extends Service {
 
   async init(config, services) {
-    this.config = config;
-    this.services = services;
+    await super.init(config, services);
     this.spec = await this.services.getSpec();
     this.client = await MongoDB.MongoClient.connect(this.config.db.url, {
       useNewUrlParser: true,

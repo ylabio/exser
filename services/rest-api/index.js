@@ -6,13 +6,13 @@ const cookieParser = require('cookie-parser');
 const errors = require('../../utils').errors;
 const xmlparser = require('express-xml-bodyparser');
 const httpProxy = require('http-proxy');
+const Service = require("../service");
 
-class RestAPI {
+class RestAPI extends Service {
 
   async init(config, services) {
-    this.config = config;
+    await super.init(config, services);
     this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}${this.config.baseUrl}`;
-    this.services = services;
     this.spec = await this.services.getSpec();
     this.app = null;
     return this;

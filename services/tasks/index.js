@@ -1,12 +1,7 @@
 const moment = require('moment');
+const Service = require("../service");
 
-class Tasks {
-
-  async init(config, services) {
-    this.config = config;
-    this.services = services;
-    return this;
-  }
+class Tasks extends Service {
 
   async start({name, ...params}) {
     if (this.config[name]) {

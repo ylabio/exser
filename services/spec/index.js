@@ -1,18 +1,21 @@
 const Ajv = require('ajv').default;
 const ajvFormats = require('ajv-formats').default;
-const ajvKeywords = require('ajv-keywords');
+const ajvKeywords = require('ajv-keywords').default;
 const {errors, objectUtils} = require('../../utils');
 const mc = require('merge-change');
 const instance = require('./keywords/instance');
+const Service = require("../service");
+
 /**
  * Сервис спецификации
  * Содержит все схемы для валидации, фильтрации моделей и описания апи
  * Структура всей схемы соответствует OpenApi 3.0
  * Схемы моделей помещаются в #/components/schemas
  */
-class Spec {
+class Spec extends Service {
 
   constructor() {
+    super();
     this.validator = new Ajv({
       strict: false,
       removeAdditional: true, // Если в схеме явно указано additionalProperties: false, то удалять все не описанные свойства,
@@ -53,7 +56,8 @@ class Spec {
       externalDocs: {},
     };
     this.keywords = {};
-    this.trees = {};
+    // this.trees = {};
+    this._shortcuts = {};
   }
 
   /**
@@ -63,8 +67,7 @@ class Spec {
    * @returns {Promise<Spec>}
    */
   async init(config, services) {
-    this.config = config;
-    this.services = services;
+    await super.init(config, services);
     this.specification = mc.update(this.specification, config.default);
     if (config.keywords) {
       const names = Object.keys(config.keywords);
@@ -108,6 +111,28 @@ class Spec {
   }
 
   /**
+   * Методы со схемой с сокращением пути к ней
+   * @param path {String}
+   * @returns {{set: Function, get: Function, validate:Function}}
+   */
+  getShortcut(path) {
+    if (!this._shortcuts[path]) {
+      this._shortcuts[path] = {
+        set: (subPath, def) => {
+          this.set(`${path}${subPath}`, def);
+        },
+        get: (subPath) => {
+          return this.get(`${path}${subPath}`);
+        },
+        validate: async (subPath, value, context) => {
+          return this.validate(`${path}${subPath}`, value, context);
+        }
+      }
+    }
+    return this._shortcuts[path];
+  }
+
+  /**
    * Установить кастомное ключевое слово для JSONScheme
    * @link 3
    * @param name {String}
@@ -132,7 +157,7 @@ class Spec {
     instance.CLASS_NAMES[construct.name] = construct;
   }
 
-  exeKeywordInstance(data, dataSchema){
+  exeKeywordInstance(data, dataSchema) {
     return instance.exe(data, dataSchema);
   }
 
@@ -158,13 +183,23 @@ class Spec {
           let propsNames = Object.keys(schema.items.properties);
           for (let propName of propsNames) {
             // Двойными слэшами кодируется множественность свойства (массив)
-            this.findPropertiesWithKeyword({keyword, schema: schema.items.properties[propName], result, path: `${path}${path ? '//' : '/'}${propName}`});
+            this.findPropertiesWithKeyword({
+              keyword,
+              schema: schema.items.properties[propName],
+              result,
+              path: `${path}${path ? '//' : '/'}${propName}`
+            });
           }
         }
       } else if (schema.type === 'object' && schema.properties) {
         let propsNames = Object.keys(schema.properties);
         for (let propName of propsNames) {
-          this.findPropertiesWithKeyword({keyword, schema: schema.properties[propName], result, path: `${path}${path ? '.' : ''}${propName}`});
+          this.findPropertiesWithKeyword({
+            keyword,
+            schema: schema.properties[propName],
+            result,
+            path: `${path}${path ? '.' : ''}${propName}`
+          });
         }
       }
     }

@@ -1,12 +1,6 @@
-const {stringUtils} = require('../../utils');
+const Service = require("../service");
 
-class Example {
-
-  async init(config, services) {
-    this.config = config;
-    this.services = services;
-    return this;
-  }
+class Example extends Service {
 
   async start(params) {
     console.log('- Work example');

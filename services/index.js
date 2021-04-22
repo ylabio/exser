@@ -23,7 +23,7 @@ class Services {
   /**
    * Запуск сервисов
    * @param commands {Array<{name: {String}, params: {Object}}>} Массив команд с названием и параметрами запускаемого сервиса
-   * @returns {Promise<unknown[]>}
+   * @returns {Promise<*>}
    */
   async start(commands){
     if (!Array.isArray(commands)) commands = [commands];
@@ -69,21 +69,27 @@ class Services {
 
   /**
    *
-   * @param {String} path
+   * @param path {String} Путь на файл сервиса относительно корня приложения
+   * @param [params] {Object} Параметры сервису, дополняющие конфиг
    * @return {Promise<*>}
    */
   async import(path, params) {
     if (!this.list[path]) {
       const ClassName = require(path);
       this.list[path] = new ClassName();
-      const name = path.split(/[\/\\]/).pop();
-      await this.list[path].init(Object.assign({}, this.configs[name], params), this);
+      let configName;
+      if (this.list[path].configName === 'function'){
+        configName = this.list[path].configName();
+      } else {
+        configName = path.split(/[\/\\]/).pop();
+      }
+      await this.list[path].init(Object.assign({}, this.configs[configName], params), this);
     }
     return this.list[path];
   }
 
   async get(name, params){
-    const method = `get${stringUtils.tuUpperFirst(stringUtils.toCamelCase(name))}`;
+    const method = `get${stringUtils.toUpperFirst(stringUtils.toCamelCase(name))}`;
     if (this[method]){
       return this[method](params);
     } else {
