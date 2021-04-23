@@ -46,8 +46,6 @@ class Dump extends Service {
    * Экспорт объектов указанной модели в файл
    * @param model Название модели
    * @param filter Фильтр, какие объекты экспортировать
-   * @param schemaView Название схемы, по которой выбирать объекты из storage
-   * @param fields Какие поля выбирать, по умолчанию все в соответствии со схемой.
    * @param session Объект сессии, по умолчанию указан язык All для выборки всех переводов
    * @param removeFields Какие поля удалить рекурсивно. По умолчанию удаляются _id
    * @param dir Директория, куда сохранить файл экспорта. Должна существовать.
@@ -56,8 +54,6 @@ class Dump extends Service {
   async export({
                  model,
                  filter = {isDeleted: false},
-                 fields = '*,isDeleted',
-                 schemaView = 'view',
                  removeFields = ['_id'],
                  session = {acceptLang: 'all'},
                  dir = './service/dump/data/'
@@ -67,20 +63,17 @@ class Dump extends Service {
     let writeStream = fs.createWriteStream(file);
     const modelStore = this.storage.get(model);
     const cursor = modelStore.native.find(filter);
-    for await (const item of cursor) {
-      let object = await modelStore.view(item, {schema: schemaView, fields, session});
+    for await (let item of cursor) {
       if (removeFields) {
-        object = this.removeFields(object, removeFields);
+        item = this.removeFields(item, removeFields);
       }
-      writeStream.write(JSON.stringify(object) + '\n', 'utf8');
+      writeStream.write(JSON.stringify(item) + '\n', 'utf8');
     }
     writeStream.end();
   }
 
   async import({
                  model,
-                 schemaCreate = 'create',
-                 schemaUpdate = 'update',
                  uniqueFields = ['code'],
                  session = {},
                  clear = false,
@@ -106,7 +99,7 @@ class Dump extends Service {
       for (const key of uniqueFields) {
         filter[key] = body[key];
       }
-      await modelStore.upsertOne({filter, body, schemaCreate, schemaUpdate, session});
+      await modelStore.upsertOne({filter, body, session});
     };
     return new Promise((resolve, reject) => {
         const input = fs.createReadStream(file);
