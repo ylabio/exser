@@ -274,6 +274,10 @@ class Spec extends Service {
           if (key === '_tree' || key === '_key') {
             continue;
           }
+          // Опции модели
+          if (['collection', 'indexes', 'options'].indexOf(key) !== -1 && obj.type === 'object') {
+            continue;
+          }
           result[key.replace(/\\/g, '/')] = filter(obj[key], `${key}`);
         }
       } else if (typeof obj === 'function') {
@@ -334,12 +338,12 @@ class Spec extends Service {
     const errorsList = validationError.errors || this.validator.errors;
     let issues = [];
     if (errorsList) {
-      errorsList.map(({keyword, params, dataPath, schema, parentSchema, message}) => {
+      errorsList.map(({keyword, params, schemaPath, schema, parentSchema, message}) => {
         let key, path, customMessage;
         switch (keyword) {
           case 'required':
             key = params.missingProperty;
-            path = combinePath(...rootField.split('/'), dataPath, key);
+            path = combinePath(...rootField.split('/'), schemaPath, key);
             customMessage = this.getCustomMessage(keyword, schema[key], key, message);
             if (customMessage !== false) {
               issues.push({
@@ -350,11 +354,11 @@ class Spec extends Service {
             }
             break;
           default:
-            key = dataPath.split('/').pop();
+            key = schemaPath.split('/').pop();
             customMessage = this.getCustomMessage(keyword, parentSchema, key, message);
             if (customMessage !== false) {
               issues.push({
-                path: combinePath(rootField, dataPath),
+                path: combinePath(rootField, schemaPath),
                 rule: customMessage.rule,
                 message: customMessage.message,
               });
