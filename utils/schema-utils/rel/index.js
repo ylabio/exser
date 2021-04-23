@@ -87,6 +87,7 @@ module.exports = function ({
   //   typeObject.properties._tree = {type: 'array', description: 'Массив родителей', items: {type: 'object'}};
   // }
   // Допустимые значения для свойство _type если
+  typeObject.properties._type.errors = {enum: false};
   if (Array.isArray(model)) {
     if (model.length) typeObject.properties._type.enum = model;
   } else {

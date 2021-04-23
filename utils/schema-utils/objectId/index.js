@@ -23,12 +23,13 @@ module.exports = function ({
   let result = {
     anyOf: [
       {is: 'ObjectID', errors: {is: false}}, // Экземпляр new ObjectID()
-      {type: 'string', pattern: '^[0-9a-fA-F]{24}$', errors: {pattern: false}}, // Строка в формате Hash24
+      {type: 'string', pattern: '^[0-9a-fA-F]{24}$', errors: {pattern: false, type: false}}, // Строка в формате Hash24
     ],
     //toObjectId: true, // Ключевое слово сконвертирует строку в экземпляр ObjectId. Пустое значение в null},
     instance: {name: 'ObjectID', emptyToNull: true, createWithNull: false},
     description,
     errors: {
+      instance: false,
       anyOf: {message: 'Incorrect type (ObjectID or 24byte hex string)', rule: 'type'},
       ...errors
     },

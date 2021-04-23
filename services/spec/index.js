@@ -332,6 +332,7 @@ class Spec extends Service {
   customErrors(rootField = '', validationError, value) {
     const combinePath = (...paths) => {
       return paths.join('/')
+        .replace(/(anyOf|oneOf|allOf)(\/\d)?/, '') // удаление anyOf из пути на свойство
         .replace(/(\/\/|\[)/g, '/') // замена двух точек или [ на слэш
         .replace(/(^[.\/]|[.\/]$|])/g, ''); // удаление точки или слэша в начале и конце, удаление ]
     };
