@@ -237,7 +237,7 @@ class Model extends Service {
 
       // Кастомная валидация
       if (validate) {
-        objectValid = validate({object: objectValid, source: object, session});
+        objectValid = await validate({object: objectValid, source: object, session});
       }
 
       // запись в базу
@@ -297,7 +297,7 @@ class Model extends Service {
 
       // Кастомная валидация
       if (validate) {
-        objectValid = validate({object: objectValid, prev, source, session});
+        objectValid = await validate({object: objectValid, prev, source, session});
       }
 
       // Вычисление отличий
