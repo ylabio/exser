@@ -106,7 +106,7 @@ class Model extends Service {
    */
   async findOne({filter, session}) {
     return this.restoreInstances(
-      await this.native.findOne(filter),
+      await this.native.findOne(filter), session
     );
   }
 
@@ -129,7 +129,7 @@ class Model extends Service {
     let object;
     let result = [];
     for await (const item of cursor) {
-      object = this.restoreInstances(item);
+      object = this.restoreInstances(item, session);
       if (callback) {
         object = await callback(object, i);
         if (object) result.push(object);
@@ -255,7 +255,7 @@ class Model extends Service {
       // @todo Оповестить о создании объекта
 
       // Подготовка на вывод
-      return this.restoreInstances(object); // result
+      return this.restoreInstances(object, session); // result
     } catch (e) {
       throw errors.convert(e);
     }
@@ -453,23 +453,24 @@ class Model extends Service {
    * Используется логика ключевого слова instance без выполнения валидации по всей схеме.
    * Предварительно в схеме модели найдены все свойства с ключевым словом instance.
    * @param value
+   * @param session
    * @param path
    * @returns {*}
    */
-  restoreInstances(value, path = '') {
+  restoreInstances(value, session, path = '') {
     if (this.propertiesWithInstance[path]) {
-      return this.spec.exeKeywordInstance(value, this.propertiesWithInstance[path]);
+      return this.spec.exeKeywordInstance(value, this.propertiesWithInstance[path], session, this.services);
     }
     const type = mc.utils.type(value);
     if (type === 'Object') {
       for (const [key, item] of Object.entries(value)) {
         const pathKey = path ? `${path}/${key}` : key;
-        value[key] = this.restoreInstances(item, pathKey);
+        value[key] = this.restoreInstances(item, session, pathKey);
       }
     } else if (type === 'Array') {
       const pathKey = `${path}//`;
       for (let i = value.length - 1; i--; i >= 0) {
-        value[i] = this.restoreInstances(value[i], pathKey);
+        value[i] = this.restoreInstances(value[i], session, pathKey);
       }
     }
     return value;

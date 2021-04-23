@@ -157,8 +157,8 @@ class Spec extends Service {
     instance.CLASS_NAMES[construct.name] = construct;
   }
 
-  exeKeywordInstance(data, dataSchema) {
-    return instance.exe(data, dataSchema);
+  exeKeywordInstance(data, dataSchema, session, services) {
+    return instance.exe(data, dataSchema, session, services);
   }
 
   /**
