@@ -265,7 +265,7 @@ class Model extends Service {
    * Обновление одного объекта
    * @returns {Promise.<*|Object>}
    */
-  async updateOne({filter, body, validate, prepare, session, prev}) {
+  async updateOne({filter, body, validate, session, prev}) {
     // Текущий объект в базе
     if (!prev) {
       prev = await this.findOne({filter, session});
@@ -275,9 +275,11 @@ class Model extends Service {
     }
     let _id = prev._id;
     try {
-      let object = {};
-      if ('dateUpdate' in this.defined.properties) object.dateUpdate = new Date();
-      object = mc.merge(prev, object, body);
+      let source = {};
+      if ('dateUpdate' in this.defined.properties) source.dateUpdate = new Date();
+      source = mc.merge(source, body);
+      // Объект со всеми свойствами с учётом новых
+      let object = mc.merge(prev, source);
 
       let objectValid = await this.validate({object, prev, session});
 
@@ -295,7 +297,7 @@ class Model extends Service {
 
       // Кастомная валидация
       if (validate) {
-        objectValid = validate({object: objectValid, prev, source: object, session});
+        objectValid = validate({object: objectValid, prev, source, session});
       }
 
       // Вычисление отличий
@@ -543,6 +545,16 @@ class Model extends Service {
       }
     }
     return result;
+  }
+
+  /**
+   * Наследование схем
+   * @param defBase {Object}
+   * @param defNew {Object}
+   * @returns {Object}
+   */
+  extend(defBase, defNew){
+    return mc.merge(defBase, defNew);
   }
 }
 

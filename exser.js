@@ -1,7 +1,7 @@
 module.exports = {
   utils: require('./utils'),
   // Класс сервиса
-  Service: require('./services/service.js'),
+  Service: require('./services/service/index.js'),
   // Менеджер сервисов
   services: require('./services'),
   Services: require('./services'),

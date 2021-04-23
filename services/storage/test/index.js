@@ -10,7 +10,7 @@ const mc = require('merge-change');
 class Test extends Model {
 
   define() {
-    return mc.merge(super.define(), type.model({
+    return this.extend(super.define(), type.model({
       title: 'Тестовая модель',
       collection: 'test',
       indexes: {
