@@ -78,14 +78,13 @@ module.exports = {
 
   dump: {
     models: [],
-    filter: {isDeleted: false},
-    session: {acceptLang: 'all'},
-    schemaCreate: 'create',
-    schemaUpdate: 'update',
-    schemaView: 'view',
-    fields: '*,isDeleted',
-    uniqueFields: ['code'],
-    removeFields: ['_id'],
+    filter: {_deleted: false},
+    uniqueFields: {
+      defaults: ['code'],
+    },
+    removeFields: {
+      defaults: ['_id'],
+    },
     clear: false,
     dir: './services/dump/data/'
   },

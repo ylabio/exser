@@ -44,18 +44,16 @@ class Dump extends Service {
 
   /**
    * Экспорт объектов указанной модели в файл
-   * @param model Название модели
-   * @param filter Фильтр, какие объекты экспортировать
-   * @param session Объект сессии, по умолчанию указан язык All для выборки всех переводов
-   * @param removeFields Какие поля удалить рекурсивно. По умолчанию удаляются _id
-   * @param dir Директория, куда сохранить файл экспорта. Должна существовать.
+   * @param model {String} Название модели
+   * @param filter {Object} Фильтр, какие объекты экспортировать
+   * @param removeFields {Object} Какие поля удалить рекурсивно. По умолчанию удаляются _id
+   * @param dir {String} Директория, куда сохранить файл экспорта. Должна существовать.
    * @returns {Promise<void>}
    */
   async export({
                  model,
-                 filter = {isDeleted: false},
-                 removeFields = ['_id'],
-                 session = {acceptLang: 'all'},
+                 filter = {_deleted: false},
+                 removeFields = {defaults: ['_id']},
                  dir = './service/dump/data/'
                }) {
     const file = `${dir}${model}.txt`;
@@ -63,19 +61,28 @@ class Dump extends Service {
     let writeStream = fs.createWriteStream(file);
     const modelStore = this.storage.get(model);
     const cursor = modelStore.native.find(filter);
+    let removeFieldsModel = removeFields[model] ? removeFields[model] : removeFields.defaults || [];
     for await (let item of cursor) {
-      if (removeFields) {
-        item = this.removeFields(item, removeFields);
+      if (removeFieldsModel) {
+        item = this.removeFields(item, removeFieldsModel);
       }
       writeStream.write(JSON.stringify(item) + '\n', 'utf8');
     }
     writeStream.end();
   }
 
+  /**
+   * Импорт данных из файлов в storage
+   * Каждая линия в файла - JSON объект
+   * @param model {String} Название импортируемой модели
+   * @param uniqueFields {Object} Уникальные поля
+   * @param clear {Boolean} Удалять все записи в коллекции перед импортом?
+   * @param dir {String} Путь на директорию с файлом импорт. Имя файла должно соотв. названию модели с расширением txt
+   * @returns {Promise<unknown>}
+   */
   async import({
                  model,
-                 uniqueFields = ['code'],
-                 session = {},
+                 uniqueFields = {defaults: ['code']},
                  clear = false,
                  dir = './service/dump/data/'
                }) {
@@ -94,49 +101,50 @@ class Dump extends Service {
       // Удалить все записи
       await modelStore.native.deleteMany({});
     }
+    let uniqueFieldsModel = uniqueFields[model] ? uniqueFields[model] : uniqueFields.defaults || [];
     const update = async (body) => {
       let filter = {};
-      for (const key of uniqueFields) {
+      for (const key of uniqueFieldsModel) {
         filter[key] = body[key];
       }
-      await modelStore.upsertOne({filter, body, session});
+      await modelStore.upsertOne({filter, body});
     };
     return new Promise((resolve, reject) => {
-        const input = fs.createReadStream(file);
-        input.on('error', (e) => {
-          this.log(`- error: ${e}`, true);
-          resolve();
-        });
-        const stream = readline.createInterface({input});
-        let cnt = 0;
-        let cntLine = 0;
-        stream.on('line', async (line) => {
-          cntLine++;
-          // Поток сразу читает много строк и потом их итерирует.
-          // Из-за асинхронной обработки поток нужно ставить на паузу пока не обработается текущая порция линий (иначе завалим mongodb)
-          // Технически будут запущены обработчики всех полученных линий без последовательного ожидания их завершения
-          // Нужно вызвать паузу при запуске первого обработчика. И возобновить поток после завершения последнего обработчика
-          if (0 === cnt++) stream.pause();
-          try {
-            await update(JSON.parse(line));
-            stat.success++;
-          } catch (e) {
-            stat.error++;
-            stat.errorLines.push(cntLine);
-          }
-          if (--cnt === 0) {
-            stream.resume();
-            this.log(`- success: ${stat.success} errors: ${stat.error} [${stat.errorLines.join(', ')}]`);
-          }
-        });
-        stream.on('error', (e) => {
-          this.log(`- error: ${e}`, true);
-          resolve();
-        });
-        stream.on('close', () => {
-          this.log(`- success: ${stat.success} errors: ${stat.error} [${stat.errorLines.join(', ')}]`, true);
-          resolve();
-        });
+      const input = fs.createReadStream(file);
+      input.on('error', (e) => {
+        this.log(`- error: ${e}`, true);
+        resolve();
+      });
+      const stream = readline.createInterface({input});
+      let cnt = 0;
+      let cntLine = 0;
+      stream.on('line', async (line) => {
+        cntLine++;
+        // Поток сразу читает много строк и потом их итерирует.
+        // Из-за асинхронной обработки поток нужно ставить на паузу пока не обработается текущая порция линий (иначе завалим mongodb)
+        // Технически будут запущены обработчики всех полученных линий без последовательного ожидания их завершения
+        // Нужно вызвать паузу при запуске первого обработчика. И возобновить поток после завершения последнего обработчика
+        if (0 === cnt++) stream.pause();
+        try {
+          await update(JSON.parse(line));
+          stat.success++;
+        } catch (e) {
+          stat.error++;
+          stat.errorLines.push(cntLine);
+        }
+        if (--cnt === 0) {
+          stream.resume();
+          this.log(`- success: ${stat.success} errors: ${stat.error} [${stat.errorLines.join(', ')}]`);
+        }
+      });
+      stream.on('error', (e) => {
+        this.log(`- error: ${e}`, true);
+        resolve();
+      });
+      stream.on('close', () => {
+        this.log(`- success: ${stat.success} errors: ${stat.error} [${stat.errorLines.join(', ')}]`, true);
+        resolve();
+      });
     });
   }
 
