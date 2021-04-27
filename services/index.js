@@ -1,7 +1,7 @@
 const stringUtils = require('../utils/string-utils');
-const objectUtils = require('../utils/object-utils');
 const fs = require('fs');
 const path = require('path');
+const mc = require('merge-change');
 
 class Services {
 
@@ -44,8 +44,12 @@ class Services {
   }
 
   /**
-   *
-   * @param configs {Object|String} Options or filenames with options
+   * Подключение конфигураций
+   * Объект конфигурации содержит ключи - названия сервисов, значение ключа - объект с опциями для соотв. сервиса
+   * Вместо объекта можно передавать названия файла с конфигурацией.
+   * Путь относительно корня приложения.
+   * Если указанного файла нет, то ону будет создан с пустым объектом конфигурации.
+   * @param configs {Array<Object|String>} Массив с объектами опций или пути на файлы.
    * @returns {Services}
    */
   configure(configs){
@@ -60,7 +64,7 @@ class Services {
           configs[i] = require(filename);
         }
         if (typeof configs === 'object') {
-          this.configs = objectUtils.merge(this.configs, configs[i]);
+          this.configs = mc.merge(this.configs, configs[i]);
         }
       }
     }
@@ -73,7 +77,7 @@ class Services {
    * @param [params] {Object} Параметры сервису, дополняющие конфиг
    * @return {Promise<*>}
    */
-  async import(path, params) {
+  async import(path, params = {}) {
     if (!this.list[path]) {
       const ClassName = require(path);
       this.list[path] = new ClassName();
@@ -83,7 +87,7 @@ class Services {
       } else {
         configName = path.split(/[\/\\]/).pop();
       }
-      await this.list[path].init(Object.assign({}, this.configs[configName], params), this);
+      await this.list[path].init(mc.merge(this.configs[configName], params), this);
     }
     return this.list[path];
   }
@@ -151,6 +155,13 @@ class Services {
    */
   async getDump(params) {
     return this.import(__dirname + '/dump', params);
+  }
+
+  /**
+   * @returns {Promise<Access>}
+   */
+  async getAccess(params) {
+    return this.import(__dirname + '/access', params);
   }
 }
 

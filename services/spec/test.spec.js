@@ -1,11 +1,12 @@
 const {schemaUtils} = require('../../utils');
+const Services = require('../index');
 
 describe('Spec', () => {
   let s = {};
   let data = {};
 
   beforeAll(async () => {
-    s.services = await require('../init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     // s.test = await s.services.getTest();
     s.spec = await s.services.getSpec();
   });

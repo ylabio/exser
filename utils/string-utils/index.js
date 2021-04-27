@@ -19,6 +19,10 @@ const stringUtils = {
     return crypto.createHash('md5').update(value).digest('hex');
   },
 
+  isHash(value){
+    return /^[a-f0-9]{32}$/.test(value);
+  },
+
   async generateToken() {
     return await crypto.randomBytes(32).toString('hex');
   },

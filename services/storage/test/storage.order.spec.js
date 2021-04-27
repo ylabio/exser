@@ -1,12 +1,13 @@
 const {utils} = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
+const Services = require('../../index');
 
 describe('Storage.order', () => {
   let s = {};
   let data = {};
 
   beforeAll(async () => {
-    s.services = await require('../../init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
     data.session = {

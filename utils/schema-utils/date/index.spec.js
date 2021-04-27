@@ -1,11 +1,12 @@
 const date = require('./index');
 const {utils} = require('merge-change');
+const Services = require('../../../services');
 
 describe('schema-utils.date', () => {
   let s = {};
 
   beforeAll(async () => {
-    s.services = await require('../../../services/init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.spec = await s.services.getSpec();
     s.spec.set('#/components/schemas/model.withDate', {
       type: 'object',

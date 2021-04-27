@@ -10,12 +10,12 @@ class Sessions extends Service {
   async init(config, services) {
     await super.init(config, services);
     this.counter = 0;
-    this.SessionStateCounstrictor = this.config.SessionStateCounstrictor || SessionState;
+    this.SessionStateCounstructor = this.config.SessionStateCounstructor || SessionState;
     return this;
   }
 
   create(){
-    return new this.SessionStateCounstrictor(++this.counter, this.services);
+    return new this.SessionStateCounstructor(++this.counter, this.services);
   }
 }
 

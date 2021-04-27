@@ -56,6 +56,26 @@ const arrayUtils = {
     return result;
   },
 
+  /**
+   * Заполнить элементы массива, индексы которых указаны битовой маской
+   * @param list {Array} Массив, чьи элементы нужно заполнить
+   * @param fill {*} Какие элементы заполнить. Определяются индексом единиц в бинарном числе, например mask = 5 => 101
+   * @param mask {Number} Целое положительное число
+   * @returns {*[]}
+   */
+  fillByBinaryMask(list, fill, mask){
+    let result = [];
+    for (let b = 0; b < list.length; b++){
+      const sign = Math.pow(2, list.length-b-1); // ... 16, 8, 4, 2, 1 ... для битового сравнения
+      if (mask & sign) {
+        result.push(fill);
+      } else {
+        result.push(list[b]);
+      }
+    }
+    return result;
+  }
+
 };
 
 module.exports = arrayUtils;

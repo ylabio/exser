@@ -1,5 +1,5 @@
 /**
- * Конфиг всех сервисов
+ * Основной конфиг всех сервисов
  * @type {Object}
  */
 module.exports = {
@@ -16,7 +16,7 @@ module.exports = {
       secure: false,
     },
     log: true,
-    securityAuthorized: [{token: []}], // Способ авторизация в сваггере по умолчанию, если определено условие доступа
+    securityAuthorized: [{token: []}], // Способ авторизация в swagger по умолчанию, если определено условие доступа
     validateResponse: false,
     // Кроссдоменные запросы
     cors: {
@@ -126,4 +126,60 @@ module.exports = {
       log: true,
     },
   },
+
+  access: {
+    acl: [
+      {
+        key: 1,
+        session: {'user.role.name': 'admin'},
+        actions: {
+          '*': true
+        }
+      },
+      {
+        key: 2,
+        session: {},// Любая сессия
+        actions: {
+          'test.createOne': false,
+          'test.updateOne': true,
+          'test.findMany': false,
+          'test.findOne': {objects: [{_key: "super-report"}]},
+          'test.deleteOne': false,
+          'city': false,
+          'city.*': true
+        }
+      }
+    ],
+    acl_: [
+      // Доступы админам
+      {
+        session: {'user.role.name': 'admin'},
+        actions: {
+          '*': {
+            allow: false
+          },
+        }
+      },
+      // Доступы всем
+      {
+        session: {},// Любая сессия
+        actions: {
+          'report': {
+            allow: true,
+            actions: {
+              'create': {allow: false},
+              'edit': {allow: true},
+              'view': {allow: false},
+              'viewOne': {
+                allow: true,
+                objects: [{_key: "super-report"}],
+              },
+              'delete': {allow: false},
+            },
+          },
+          'city': {}
+        }
+      }
+    ]
+  }
 };

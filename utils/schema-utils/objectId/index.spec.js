@@ -1,12 +1,13 @@
 const objectId = require('./index');
 const {utils} = require('merge-change');
 const ObjectId = require('mongodb').ObjectID;
+const Services = require('../../../services');
 
 describe('schema-utils.objectId', () => {
   let s = {};
 
   beforeAll(async () => {
-    s.services = await require('../../../services/init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.spec = await s.services.getSpec();
     s.storage = await s.services.getStorage(); // нужно для регистрации objectId свойства в instance
     s.spec.set('#/components/schemas/model.objectId', {

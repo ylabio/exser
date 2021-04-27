@@ -1,5 +1,27 @@
 const queryUtils = require('./index.js');
 const ObjectID = require('mongodb').ObjectID;
+const mc = require('merge-change');
+
+describe('type method', () => {
+  test('objectId', () => {
+    const value = queryUtils.type('6085185ec8872a75d036d933');
+    expect(mc.utils.type(value)).toEqual('ObjectID');
+  });
+  test('number', () => {
+    const value = queryUtils.type('6085185');
+    expect(mc.utils.type(value)).toEqual('Number');
+  });
+  test('date', () => {
+    const value = queryUtils.type('2021-04-25T14:13:33.072Z');
+    expect(mc.utils.type(value)).toEqual('Date');
+  });
+  test('boolean', () => {
+    const value = queryUtils.type('true');
+    expect(mc.utils.type(value)).toEqual('Boolean');
+    const value2 = queryUtils.type('false');
+    expect(mc.utils.type(value2)).toEqual('Boolean');
+  });
+})
 
 describe('Parse fields parameter', () => {
   test('parse one field', () => {

@@ -2,13 +2,14 @@ const {utils} = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
 const schemaUtils = require('../../../utils/schema-utils');
 const I18nProperty = require('../properties/i18n/index');
+const Services = require('../../index');
 
 describe('Storage.i18n', () => {
   let s = {};
   let data = {};
 
   beforeAll(async () => {
-    s.services = await require('../../init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.storage = await s.services.getStorage();
     s.spec = await s.services.getSpec();
     s.objects = s.storage.get('test');

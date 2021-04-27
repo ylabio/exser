@@ -3,18 +3,19 @@ const ObjectID = require('mongodb').ObjectID;
 const schemaUtils = require('../../../utils/schema-utils');
 const RelProperty = require('../properties/rel/index');
 const SessionState = require('../../sessions/session-state');
+const Services = require('../../index');
 
 describe('Storage.rel', () => {
   let s = {};
   let data = {};
 
   beforeAll(async () => {
-    s.services = await require('../../init-spec');
+    s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.storage = await s.services.getStorage();
     s.spec = await s.services.getSpec();
     s.sessions = await s.services.getSessions();
     s.objects = s.storage.get('test');
-    /** @type SessionState */
+    /** @type {SessionState} */
     data.session = s.sessions.create();
     data.session.setAcceptLang('ru').setAuth({
       user: {
