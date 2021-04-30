@@ -34,7 +34,7 @@ class Spec extends Service {
       openapi: '3.0.0',
       info: {
         title: 'API',
-        description: 'REST API',
+        //description: 'REST API',
         termsOfService: '',//url
         version: '1.0.0',
       },
@@ -51,7 +51,6 @@ class Spec extends Service {
         links: {},
         callbacks: {},
       },
-      security: {},
       tags: [], // Теги для группировки роутеров
       externalDocs: {},
     };
@@ -240,7 +239,8 @@ class Spec extends Service {
     }
   }
 
-  getSchemaOpenApi() {
+  getSchemaOpenApi({host}) {
+    let result = mc.merge(this.specification, {});
     const filter = (obj, parent = '') => {
       let result;
       if (Array.isArray(obj)) {
@@ -287,7 +287,15 @@ class Spec extends Service {
       }
       return result;
     };
-    return filter(this.specification);
+    if (host && result.servers){
+      result.servers = result.servers.map(item => {
+        if (!item.url.match(/^https?::/)){
+          item.url = host + item.url;
+        }
+        return item;
+      })
+    }
+    return filter(result);
   }
 
   /**
@@ -339,12 +347,12 @@ class Spec extends Service {
     const errorsList = validationError.errors || this.validator.errors;
     let issues = [];
     if (errorsList) {
-      errorsList.map(({keyword, params, schemaPath, schema, parentSchema, message}) => {
+      errorsList.map(({keyword, params, schemaPath, schema, parentSchema, message, instancePath, ...other}) => {
         let key, path, customMessage;
         switch (keyword) {
           case 'required':
             key = params.missingProperty;
-            path = combinePath(...rootField.split('/'), schemaPath, key);
+            path = combinePath(...rootField.split('/'), instancePath, key);
             customMessage = this.getCustomMessage(keyword, schema[key], key, message);
             if (customMessage !== false) {
               issues.push({
@@ -359,7 +367,7 @@ class Spec extends Service {
             customMessage = this.getCustomMessage(keyword, parentSchema, key, message);
             if (customMessage !== false) {
               issues.push({
-                path: combinePath(rootField, schemaPath),
+                path: combinePath(rootField, instancePath),
                 rule: customMessage.rule,
                 message: customMessage.message,
               });

@@ -47,14 +47,14 @@ describe('Access', () => {
 
   test('findAclItemsBySession - user session', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'admin'}}})
+    session.user = {role: {name: 'admin'}};
     const result = s.access.findAclItemsBySession(session);
     expect(result).toMatchObject([{key: 1}, {key: 2}]);
   });
 
   test('findAclItemsBySession - bad user session', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'some-name'}}})
+    session.user = {role: {name: 'some-name'}};
     const result = s.access.findAclItemsBySession(session);
     expect(result).toMatchObject([{key: 2}]);
     expect(result).not.toMatchObject([{key: 1}]);
@@ -62,7 +62,7 @@ describe('Access', () => {
 
   test('findAclItemsByAction', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'some-name'}}})
+    session.user = {role: {name: 'some-name'}};
     const result = s.access.findAclItemsByAction('test.findOne');
     expect(result).toMatchObject([{key: 1, match: '*.*'}, {key: 2, match: 'test.findOne'}]);
   })
@@ -86,14 +86,16 @@ describe('Access', () => {
   });
 
   test('isAllow - test', () => {
+    let details = {};
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'admin'}}})
-    expect(s.access.isAllow({action: 'xx.test.createOne', session})).toBe(false);
+    session.user = {role: {name: 'user'}};
+    expect(s.access.isAllow({action: 'test.createOne', session, details})).toBe(false);
+    console.log(details);
   });
 
   test('isAllow - admin (two acl)', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'admin'}}})
+    session.user = {role: {name: 'admin'}};
     expect(s.access.isAllow({action: 'test.createOne', session})).toBe(true);
     expect(s.access.isAllow({action: 'test.updateOne', session})).toBe(true);
     expect(s.access.isAllow({action: 'test.findOne', session})).toBe(true);
@@ -107,7 +109,7 @@ describe('Access', () => {
 
   test('isAllow - user name from session', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {name: 'user'}})
+    session.user = {name: 'user'};
     expect(s.access.isAllow({
       action: 'test.findOne',
       session,
@@ -132,7 +134,7 @@ describe('Access', () => {
 
   test('getAccess admin', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'admin'}}})
+    session.user = {role: {name: 'admin'}};
     expect(s.access.getAccess({action: 'test.updateOne', session})).toMatchObject([true, true]);
     expect(s.access.getAccess({
       action: 'test.findOne',
@@ -146,7 +148,7 @@ describe('Access', () => {
 
   test('makeFilterQuery admin', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {role: {name: 'admin'}}})
+    session.user = {role: {name: 'admin'}};
     const result = s.access.makeFilterQuery({action: 'test.findOne', session});
     expect(result).toBe(true);
   });
@@ -165,7 +167,7 @@ describe('Access', () => {
 
   test('makeFilterQuery user', () => {
     const session = s.sessions.create();
-    session.setAuth({user: {_id: new ObjectID(), name: 'Vova', role: {name: 'user'}}})
+    session.user = {_id: new ObjectID(), name: 'Vova', role: {name: 'user'}};
     const result = s.access.makeFilterQuery({action: 'test.findOne', session});
     expect(result).toMatchObject({ '$or': [ { _key: 'test123' }, { 'author.name': 'Vova' } ] });
   });

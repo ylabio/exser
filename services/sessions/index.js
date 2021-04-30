@@ -15,7 +15,7 @@ class Sessions extends Service {
   }
 
   create(){
-    return new this.SessionStateCounstructor(++this.counter, this.services);
+    return new this.SessionStateCounstructor(++this.counter);
   }
 }
 

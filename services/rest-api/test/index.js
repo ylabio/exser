@@ -14,11 +14,11 @@ module.exports = async (router, services) => {
     operationId: 'tests.create',
     summary: 'Создание',
     description: 'Создание объекта',
-    session: schemaUtils.sessionUser(['admin']),
+    //session: schemaUtils.sessionUser(['admin']),
     tags: ['Tests'],
     requestBody: {
       content: {
-        'application/json': {schema: {$ref: '#/components/schemas/test.create'}}
+        'application/json': {schema: {$ref: '#/components/schemas/storage.test'}}
       }
     },
     parameters: [
@@ -32,7 +32,7 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: schemaUtils.success({schema: {$ref: '#/components/schemas/test.view'}})
+      200: schemaUtils.success({schema: {$ref: '#/components/schemas/storage.test'}})
     }
   }, async (req) => {
     return await tests.createOne({
@@ -46,7 +46,7 @@ module.exports = async (router, services) => {
    * Выбор списка
    */
   router.get('/tests', {
-    operationId: 'tests.list',
+    operationId: 'tests.find.many',
     summary: 'Выбор списка (поиск)',
     description: 'Список объектов с фильтром',
     tags: ['Tests'],
@@ -72,7 +72,7 @@ module.exports = async (router, services) => {
       },
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.viewList'}})
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}})
     }
   }, async (req) => {
     const filter = queryUtils.makeFilter(req.query.search, {
@@ -92,7 +92,7 @@ module.exports = async (router, services) => {
    * Выбор одного
    */
   router.get('/tests/:id', {
-    operationId: 'tests.one',
+    operationId: 'tests.find.one',
     summary: 'Выбор одного',
     description: 'Объекта по идентификатору',
     tags: ['Tests'],
@@ -113,7 +113,7 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
       404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req/*, res*/) => {
@@ -138,7 +138,7 @@ module.exports = async (router, services) => {
     session: schemaUtils.sessionUser(['admin']),
     requestBody: {
       content: {
-        'application/json': {schema: {$ref: '#/components/schemas/test.update'}}
+        'application/json': {schema: {$ref: '#/components/schemas/storage.test'}}
       }
     },
     parameters: [
@@ -158,7 +158,7 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
       404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req) => {
@@ -197,7 +197,7 @@ module.exports = async (router, services) => {
       }
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/test.view'}}),
+      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
       404: schemaUtils.error({description: 'Not Found', status: 404})
     }
   }, async (req) => {

@@ -15,7 +15,7 @@ describe('Storage.order', () => {
         _id: new ObjectID(),
         _type: 'user',
       },
-      acceptLang: 'all',
+      lang: 'all',
     };
   });
 

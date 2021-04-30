@@ -27,7 +27,7 @@ module.exports = function ({
                              contains,
                              maxContains,
                              minContains,
-                             description = '',
+                             description = 'Массив',
                              enums,
                              constant,
                              examples,

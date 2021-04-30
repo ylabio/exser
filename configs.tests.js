@@ -4,9 +4,8 @@
  */
 module.exports = {
   mode: 'test',
-  server: {
-    host: 'localhost',
-    port: 8010
+  'rest-api': {
+
   },
   storage: {
     db: {

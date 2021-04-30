@@ -21,7 +21,7 @@ module.exports = function ({
                              exclusiveMinimum,
                              exclusiveMaximum,
                              multipleOf,
-                             description = '',
+                             description = 'Число',
                              enums,
                              constant,
                              examples,

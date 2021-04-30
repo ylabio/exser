@@ -5,20 +5,31 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const errors = require('../../utils').errors;
 const xmlparser = require('express-xml-bodyparser');
-const httpProxy = require('http-proxy');
 const Service = require("../service");
 
 class RestAPI extends Service {
 
   async init(config, services) {
     await super.init(config, services);
-    this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}${this.config.baseUrl}`;
+    this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}`;
     this.spec = await this.services.getSpec();
+    this.access = await this.services.getAccess();
     this.app = null;
     return this;
   }
 
-  async start(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {
+  /**
+   * Запуск сервиса - запуск RestAPI сервера
+   * @param params {Object} Колбэки, чтобы подключить к приложению middleware на разных стадиях
+   * @returns {Promise<Express>}
+   */
+  async start(params = {
+    atFirst: null,
+    atEnd: null,
+    atError: null,
+    atRequest: null,
+    atResponse: null
+  }) {
     const app = await this.getApp(params);
     await new Promise((resolve) => {
       app.listen(this.config.port, this.config.host, function () {
@@ -28,12 +39,29 @@ class RestAPI extends Service {
     this.logStart(app);
     return app;
   }
-  
-  logStart(app){
-    console.log(`REST API: ${this.config.url}, docs: ${this.config.url}/docs`);
+
+  /**
+   * Вывод лога после запуска приложения
+   * В отдельном методе для возможности переопределения
+   * @param app
+   */
+  logStart(app) {
+    console.log(`REST API: ${this.config.url}${this.config.path}`);
   }
 
-  async getApp(params = {atFirst: null, atEnd: null, atError: null, atRequest: null, atResponse: null}) {
+  /**
+   * Experss приложение
+   * Инициализация, если его ещё нет
+   * @param params {Object} Колбэки, чтобы подключить к приложению middleware на разных стадиях
+   * @returns {Promise<Express>}
+   */
+  async getApp(params = {
+    atFirst: null,
+    atEnd: null,
+    atError: null,
+    atRequest: null,
+    atResponse: null
+  }) {
     if (this.app) {
       return this.app;
     }
@@ -41,69 +69,29 @@ class RestAPI extends Service {
     if (params.atFirst) {
       await params.atFirst(this.app);
     }
-    //app.use(morgan('combined'));
     this.app.use(cookieParser());
     this.app.use(bodyParser.json());
     this.app.use(xmlparser());
     this.app.use(bodyParser.urlencoded({extended: true}));
     this.app.use(express.static('public'));
-    this.app.use(this.config.baseUrl, await this.getRouter({
+    this.app.use(this.config.path, await this.getRouter({
+      pathUrl: this.config.path,
+      routers: this.config.routers,
       atRequest: params.atRequest,
       atResponse: params.atResponse,
     }));
     if (params.atEnd) {
       await params.atEnd(this.app);
     }
-    this.app.use(this.getErrorHandler({atError: params.atError}));
-
-    this.proxyResponse = (proxyRes, req, res) => {
-      return new Promise((resolve, reject) => {
-        const contentType = proxyRes.headers['content-type'] && proxyRes.headers['content-type'].match(/^[^;]+/)[0];
-        if (contentType) {
-          const chunks = [];
-          proxyRes.on('error', (e) => reject(e));
-          proxyRes.on('data', (chunk) => chunks.push(chunk));
-          proxyRes.on('end', () => {
-            let body = Buffer.concat(chunks).toString();
-            res.end(body);
-            try {
-              if (contentType === 'application/json') {
-                body = JSON.parse(body);
-              }
-            } catch (e) {
-            }
-            resolve(body);
-          });
-        } else {
-          proxyRes.pipe(res);
-          resolve();
-        }
-      });
-    };
-
-    this.proxy = httpProxy.createProxyServer({});
-    this.proxy.on('proxyRes', (proxyRes, req, res) => {
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      this.proxyResponse(proxyRes, req, res).then((body) => {
-        if (this.config.validateResponse) {
-          this.validateResponse({
-            req,
-            status: proxyRes.statusCode,
-            headers: proxyRes.headers,
-            body,
-            schema: req.def,
-          });
-        }
-      });
-    });
+    this.app.use(this.errorHandler({atError: params.atError}));
     return this.app;
   }
 
   /**
-   * Роутер express
+   * Создание роутеров
    * @returns {Promise.<*>}
    */
-  async getRouter({atRequest, atResponse}) {
+  async getRouter({pathUrl, routers, atRequest, atResponse}) {
     // Переопределение методов роутера для документирования и обработки ответа
     const router = expressRouter();
     const methods = ['get', 'post', 'put', 'delete', 'options', 'patch', 'head'];
@@ -114,250 +102,213 @@ class RestAPI extends Service {
         if (typeof def === 'function') {
           fun = def;
         } else {
-          if (def.session && def.session.properties && def.session.properties.user && def.session.properties.user.summary) {
-            def.description = `${def.description || ''} \n\n --- \n\n ${def.session.properties.user.summary}`;
-          }
-          if (def.session && def.session.needSecurirty && !def.security) {
-            def.security = this.config.securityAuthorized;
+          if (def && def.action && !def.operationId){
+            def.operationId = def.action;
           }
           // Добавление роута в спецификацию
-          if (!def.hidden) {
-            const pathEscape = this.specPath('paths', path, method);
-            //const pathWithParams = path.replace(/\//g, '\\').replace(/:([a-z]+)/uig, '{$1}');
+          if (def && !def.hidden) {
+            // Требуется ли авторизация?
+            if (def.operationId) {
+              if (!def.action) def.action = def.operationId; // operationId будет использоваться для вывода emoji про доступ в ui
+              // Узнаем настройки доступов для действия
+              const aclList = this.access.findAclItemsByAction(def.action);
+              // Трансформация настроек в параметр сваггера
+              if (aclList.length === 0) {
+                // Вообще нет доступа - уведомляем об этом!
+                def.operationId = `${def.operationId || ''} ⛔️`;
+              } else {
+                // По умолчанию доступа нет вообще
+                let needAuth = false;
+                let canPublic = false;
+                // Проверяем, какие условия на сессию.
+                // Если есть поля в 'session' - то применяется авторизация
+                // Если полей нет в 'session' - то возможен публичный доступ
+                for (const acl of aclList) {
+                  if (acl.session && Object.keys(acl.session).length) {
+                    // Есть условие на сессию
+                    // @todo Поля в session не всегда означает требование авторизации
+                    needAuth = true;
+                  } else {
+                    canPublic = true;
+                  }
+                }
+                if (needAuth) {
+                  // Возможна авторизация
+                  if (!def.security) {
+                    def.security = this.config.defaultSecurity;
+                  }
+                }
+                if (canPublic) {
+                  // Возможен доступ без авторизации
+                  def.operationId = `${def.operationId || ''} 👀`;
+                }
+              }
+            }
+            const pathEscape = this.getSpecPath('paths', def.path || path, method);
             this.spec.set(pathEscape, def);
-            //this.spec.paths(method, path, def);
+          } else {
+            def = {};
           }
         }
-        router.origin[method](path, this.callbackWrapper(fun, def, atRequest, atResponse));
+        router.origin[method](path, this.responseHandler(fun, def, atRequest, atResponse));
       };
     }
-    // router.origin.use = router.use.bind(router);
-    // router.use = (...params) => {
-    //   params = params.map(param => typeof param === 'function'
-    //   ? this.callbackWrapper(param) : param);
-    //   router.origin.use(...params);
-    // };
-
     // Поддержка кроссдоменных запросов
-    router.use(cors(this.config.cors));
-
-    // Подключение всех контроллеров к роутеру
-    const routersKeys = Object.keys(this.config.routers);
-    for (const key of routersKeys) {
-      await
-        this.config.routers[key](router, this.services);
+    if (this.config.cors.active) {
+      router.use(cors(this.config.cors));
     }
 
+    if (!this.spec.get('servers') || !this.spec.get('servers').length) {
+      this.spec.set('servers', [{url: `${pathUrl}`, description: ''}]);
+    }
+
+    // Подключение всех контроллеров к роутеру
+    const routersKeys = Object.keys(routers);
+    for (const key of routersKeys) {
+      await routers[key](router, this.services, {base: this.config.url, path: this.config.path});
+    }
     return router;
   }
 
-  callbackWrapper(callback, def, atRequest, atResponse) {
+  /**
+   * Обработчик запросов
+   * Проверяет доступ на роут, если в нем указан action (operationId)
+   * Форматирует результат роутера в общий форма {result, errors}
+   * @param callback
+   * @param def
+   * @param atRequest
+   * @param atResponse
+   * @returns {(function(req, res, next): Promise<void>)}
+   */
+  responseHandler(callback, def, atRequest, atResponse) {
     return async (req, res, next) => {
-
+      req.def = def;
       if (atRequest) {
         await atRequest(req, res, next);
       }
-
-      req.def = def;
-      // if (def.security) {
-      //   if (!req.session.user) {
-      //     next(new errors.Forbidden({}, 'Access forbidden for guest'));
-      //   }
-      // } else
-      if (def.session) {
-        try {
-          await this.validateSession({
-            req,
-            session: req.session,
-            schema: def,
-          });
-        } catch (e) {
-          //console.log(JSON.stringify(e.data));
-          if (e instanceof errors.Validation) {
-            next(new errors.Forbidden(e.data));
+      // Проверка доступа на действие
+      if (def.action) {
+        const details = {};
+        const isAllow = this.access.isAllow({action: def.action, session: req.session, details});
+        if (!isAllow){
+          if (details.list.length === 0){
+            // Не найдена запись для сессии, считаем что сессия не авторизована
+            next(new errors.Unauthorized());
+          } else
+          if (details.template){
+            // Явно указан запрет
+            next(new errors.Forbidden({
+              key: details.list[details.index].key,
+              template: details.template
+            }));
           } else {
-            next(e);
+            // Нет настройки доступа для действия
+            next(new errors.Forbidden());
           }
-          return;
         }
       }
 
-      if (def.proxy) {
-        this.proxy.web(req, res, Object.assign({}, this.config.proxy, {
-          target: this.config.proxy.target + req.baseUrl,
-          selfHandleResponse: true,
-        }));
-      } else {
-        try {
-          res.statusCode = 0; // Для возможности опредлить статус в контроллере
-          let result = await callback(req, res, next);
-
-          if (typeof result !== 'undefined') {
-            if (!res.statusCode) {
-              res.status(200);
-            }
-
-            if (result.response) {
-              result = result.response;
-            } else if (Array.isArray(result)) {
-              result = {result: {items: result}};
-            } else {
-              result = {result};
-            }
-
-            if (atResponse) {
-              atResponse(result, req, res, next);
-            }
-
-            res.json(result);
-            if (this.config.validateResponse) {
-              this.validateResponse({
-                req,
-                status: res.statusCode,
-                headers: res.getHeaders(),
-                body: result,
-                schema: def,
-              });
-            }
+      try {
+        let isSendStatus = false;
+        res.originStatus = res.status;
+        res.status = status => {
+          res.originStatus(status);
+          isSendStatus = true;
+          return res;
+        };
+        let result = await callback(req, res, next);
+        // Если в роутере свой алгоритм отправки ответа, то он должен вернуть undefined
+        // Иначе отправка ответа в JSON
+        if (typeof result !== 'undefined') {
+          // Если статус не установлен вручную
+          if (!isSendStatus) {
+            res.status(res.statusCode || 200);
           }
-        } catch (e) {
-          next(e);
+          // Массив оборачивается в свойство items
+          // Любой результат в свойство result, чтобы отличать от ответа с ошибками валидации
+          if (Array.isArray(result)) {
+            result = {result: {items: result}};
+          } else {
+            result = {result};
+          }
+          if (atResponse) {
+            atResponse(result, req, res, next);
+          }
+          res.json(result);
         }
+      } catch (e) {
+        next(e);
       }
     };
   }
 
   /**
-   * Валидация ответа по схеме свагера
-   * И логирование ошибок
-   * @param req
-   * @param status
-   * @param headers
-   * @param body
-   * @param schema
-   * @returns {Promise<void>}
+   * Обработка ошибок роутера
+   * @returns {function(err, req, res, next)}
    */
-  async validateResponse({req, status, headers, body, schema}) {
-    if (schema && schema.responses) {
-      if (schema.responses[status]) {
-        const defResponse = schema.responses[status];
-        if (defResponse.headers) {
-          console.log('Validate response headers');
-        }
-        const contentType = headers['content-type'] && headers['content-type'].match(/^[^;]+/)[0];
-        if (defResponse.content) {
-          if (defResponse.content[contentType]) {
-            //console.log('Validate response body');
-            // $ref на схему для body в общем объекте спецификации
-            const name = this.specPath(
-              'paths',
-              req.route.path,
-              req.method.toLowerCase(),
-              'responses',
-              status,
-              'content',
-              contentType,
-              'schema',
-            );
-            this.spec.validate(name, body).catch(e => {
-              console.log('Not valid response body', req.method, req.route.path);
-            });
-          } else {
-            console.log(`Unsupported response content-type "${contentType}"`, req.method, req.route.path);
-          }
-        } else {
-          console.log('Not described response body:', status, req.method, req.route.path);
-        }
-      } else {
-        console.log('Not described response status:', status, req.method, req.route.path);
-      }
-    } else {
-      console.log('Not described response', req.method, req.route.path);
-    }
-  }
-
-  async validateRequest(params, query, headers, body, schema) {
-
-  }
-
-  /**
-   * Валидация ответа по схеме свагера
-   * И логирование ошибок
-   * @param req
-   * @param session
-   * @param schema
-   * @returns {Promise<void>}
-   */
-  async validateSession({req, session, schema}) {
-    if (schema && schema.session) {
-      // $ref на схему для body в общем объекте спецификации
-      const name = this.specPath('paths', req.route.path, req.method.toLowerCase(), 'session');
-      return this.spec.validate(name, session, {}, 'session');
-    }
-  }
-
-  getErrorResponse(e) {
-    if (e instanceof errors.Custom) {
-      return e.toObject();
-    } else if (e instanceof SyntaxError) {
-      return {
-        id: 400.003,
-        code: e.name,
-        message: e.message,
-        data: {},
-      };
-    } else if (e instanceof Error) {
-      return {
-        id: 500,
-        code: e.name,
-        message: e.message,
-        data: {},
-      };
-    }
-    return {
-      id: 500.000,
-      code: 'Unknown error',
-      message: JSON.stringify(e),
-    };
-  }
-
-  /**
-   * Обработка всех ошибок для express
-   * @returns {function(*=, *, *, *)}
-   */
-  getErrorHandler({atError}) {
+  errorHandler({atError}) {
     return async (err, req, res, next) => { // eslint-disable-line no-unused-vars
-
       if (this.config.log) {
         console.log(err instanceof errors.Validation ? JSON.stringify(err) : err);
       }
-      let result = {error: this.getErrorResponse(err)};
+      let result = {error: this.errorTrnasform(err)};
 
       res.status(parseInt(result.error.id || 500)).json(result);
 
       if (atError) {
         atError(result, err, req, res, next);
       }
-
-      if (this.config.validateResponse) {
-        this.validateResponse({
-          req,
-          status: res.statusCode,
-          headers: res.getHeaders(),
-          body: result,
-          schema: req.def,
-        });
-      }
     };
   }
 
-  specPath(...names) {
-    if (names.length === 1 && Array.isArray(names[0])){
+  /**
+   * Конвертация ошибки для ответа
+   * @param error {Error|*}
+   * @returns {Object}
+   */
+  errorTrnasform(error) {
+    if (typeof error.toJSON === 'function') {
+      return error.toJSON();
+    } else if (error instanceof SyntaxError) {
+      return {
+        id: 400.003,
+        code: error.name,
+        message: error.message,
+        data: {},
+      };
+    } else if (error instanceof Error) {
+      return {
+        id: 500,
+        code: error.name,
+        message: error.message,
+        data: {},
+      };
+    }
+    return {
+      id: 500.000,
+      code: 'Unknown error',
+      message: JSON.stringify(error),
+    };
+  }
+
+  /**
+   * Путь на роутера в спецификации
+   * @param names Фрагменты пути
+   * @returns {string}
+   */
+  getSpecPath(...names) {
+    if (names.length === 1 && Array.isArray(names[0])) {
       names = names[0];
     }
-    let result = names.map(item => typeof item === 'string'
-      ? item.replace(/\//g, '\\')
-      : item).join('/');
+    let result = names.map(item => {
+      if (item instanceof RegExp) {
+        item = item.toString();
+      }
+      if (typeof item === 'string') {
+        item = item.replace(/\//g, '\\')
+      }
+      return item;
+    }).join('/');
     result = '#/' + result.replace(/:([a-z0-9]+)/gi, '{$1}');
     return result;
   }

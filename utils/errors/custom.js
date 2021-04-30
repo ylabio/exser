@@ -8,7 +8,7 @@ module.exports = class Custom extends Error {
     this.data = data;
   }
 
-  toObject() {
+  toJSON() {
     return {
       id: `${this.status}.${this.code}`,
       code: this.name,

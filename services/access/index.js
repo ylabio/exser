@@ -116,15 +116,18 @@ class Access extends Service {
    * @param action {String} Свойство доступа по которому сверяются права
    * @param session {SessionState} Сессия
    * @param object {Object} Объект, на который поверяется доступ
+   * @param [details] {Object} Если передать объект, то в него добавятся детали проверки доступа.
    * @param [access] {Object} Внутренний параметр для рекурсии
    * @returns {boolean|*}
    */
-  isAllow({action = 'user.create', session = {}, object = null, access = undefined}) {
+  isAllow({action = 'user.create', session = {}, object = null, details = {}, access = undefined}) {
     // Если не передан объект доступов, то ищем в настройках по сессии
     if (access === undefined) {
-      const list = this.findAclItemsBySession(session);
-      for (const item of list) {
-        if (this.isAllow({action, session, object, access: item || null})) {
+      details.list = this.findAclItemsBySession(session);
+      for (let index = 0; index < details.list.length; index++){
+        const item = details.list[index];
+        details.index = index;
+        if (this.isAllow({action, session, object, details, access: item || null})) {
           return true;
         }
       }
@@ -144,6 +147,7 @@ class Access extends Service {
         let template = arrayUtils.fillByBinaryMask(names, '*', i).join('.');
         // Если действие по шаблону найдено, то только по нему определяется доступ
         if (template in access.actions) {
+          details.template = template;
           const sub = access.actions[template];
           if (!sub || sub.allow === false) {
             return false;

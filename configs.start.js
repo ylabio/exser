@@ -5,8 +5,7 @@
 module.exports = {
 
   'rest-api': {
-    routers: require('./services/rest-api/routers.start.js'),
-    // Прокси на другой сервер
+    routers: require('./services/rest-api/routers.start.js')
   },
   storage: {
     models: {

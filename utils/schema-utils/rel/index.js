@@ -53,7 +53,7 @@ module.exports = function ({
                              dependentRequired,
                              dependentSchemas,
                              propertyNames,
-                             description = '',
+                             description = 'Связь',
                              enums,
                              constant,
                              examples,
@@ -157,5 +157,8 @@ module.exports = function ({
   // } else {
   //   if (model) result.properties._type.enum = ['', model];
   // }
+  if (!other.title){
+    result.title = description;
+  }
   return result;
 };

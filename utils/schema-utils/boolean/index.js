@@ -9,7 +9,7 @@ const custom = require('../custom');
  * @returns {object}
  */
 module.exports = function ({
-                             description = '',
+                             description = 'Логическое',
                              constant,
                              errors,
                              defaults,

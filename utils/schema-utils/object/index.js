@@ -29,7 +29,7 @@ module.exports = function ({
                              dependentRequired,
                              dependentSchemas,
                              propertyNames,
-                             description = '',
+                             description = 'Объект',
                              enums,
                              constant,
                              examples,

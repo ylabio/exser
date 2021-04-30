@@ -16,7 +16,7 @@ describe('Storage.base', () => {
         _id: new ObjectID(),
         _type: 'user'
       },
-      acceptLang: 'all'
+      lang: 'all'
     };
   });
 

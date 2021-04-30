@@ -11,7 +11,7 @@
  * @returns {Object}
  */
 module.exports = function ({
-                             description = '',
+                             description = 'Идентификатор',
                              enums,
                              constant,
                              examples,
@@ -52,6 +52,9 @@ module.exports = function ({
   }
   if (defaults) {
     result.default = defaults;
+  }
+  if (!other.title){
+    result.title = description;
   }
   return result;
 };

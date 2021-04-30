@@ -8,57 +8,35 @@ module.exports = {
     protocol: 'http://',
     host: 'localhost',
     port: 8090,
-    baseUrl: '/api/v1',
+    path: '/api/v1',
     routers: require('./services/rest-api/routers.js'),
-    // Прокси на другой сервер
-    proxy: {
-      target: 'https://ylab.com',
-      secure: false,
-    },
-    log: true,
-    securityAuthorized: [{token: []}], // Способ авторизация в swagger по умолчанию, если определено условие доступа
-    validateResponse: false,
     // Кроссдоменные запросы
     cors: {
-      /**
-       * С каких хостов допустимы запросы
-       * - false для отключения CORS
-       * - ['http://localhost:8000', /\.ysa\.com$/]
-       * - '*' - все хосты
-       */
+      active: true,
+      // С каких хостов допустимы запросы
+      // - ['http://localhost:8000', /\.ysa\.com$/]
+      // - '*' - все хосты
       origin: [
         'http://localhost:8091',
       ],
-      /**
-       * Допустмые методы от кросдоменна
-       */
+      // Допустимые методы от кросдомена
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-      /**
-       *  Для PUT, DELETE запросов и других с нестандартными заголовками ил их значениями
-       *  Сервер будет сперва получать OPTION запрос
-       */
+      //  Для PUT, DELETE запросов и других с нестандартными заголовками ил их значениями
+      //  Сервер будет сперва получать OPTION запрос
       preflightContinue: true,
-      /**
-       * Разрешенные заголовки от клиента. У клиента должен быть Access-Control-Request-Headers
-       */
+      // Разрешенные заголовки от клиента. У клиента должен быть Access-Control-Request-Headers
       allowedHeaders: ['X-Token', 'Content-Type', 'Content-Range', 'Content-Disposition', 'X-Requested-With'],
-      /**
-       * Доступные заголовки для клиента
-       */
+      // Доступные заголовки для клиента
       exposedHeaders: ['X-Token', 'Content-Type'],
-      /**
-       * Чтобы работали кросдоменные куки. У клиента должен быть withCredentials:true
-       */
+      // Чтобы работали кроссдоменные куки. У клиента должен быть withCredentials:true
       credentials: true,
-      /**
-       * Сколько секунд браузер может кэшировать OPTION запросы при preflightContinue:true
-       */
+      // Сколько секунд браузер может кэшировать OPTION запросы при preflightContinue:true
       maxAge: 100,
-      /**
-       * Код для OPTIONS запросов
-       */
+      // Код для OPTIONS запросов
       optionsSuccessStatus: 204,
     },
+    log: true,
+    defaultSecurity: [{token: []}], // Способ авторизация в swagger по умолчанию, если определено условие доступа
   },
 
   storage: {
@@ -91,9 +69,9 @@ module.exports = {
 
   spec: {
     default: {
-      servers: [
-        {url: '/api/v1', description: 'API server'},
-      ],
+      // servers: [
+      //   {url: '/api/v1', description: 'API server'},
+      // ],
       components: {
         parameters: require('./services/spec/components/parameters'),
         responses: require('./services/spec/components/responses'),
@@ -103,12 +81,12 @@ module.exports = {
         },
       },
       tags: [
-        {name: 'Authorize', description: 'Авторизация'},
+        //{name: 'Authorize', description: 'Авторизация'},
       ],
-      externalDocs: {
-        description: 'source.json',
-        url: '/api/v1/docs/source.json',
-      },
+      // externalDocs: {
+      //   description: 'source.json',
+      //   url: '/api/v1/docs/source.json',
+      // },
     },
     keywords: require('./services/spec/keywords')
   },
@@ -133,53 +111,32 @@ module.exports = {
         key: 1,
         session: {'user.role.name': 'admin'},
         actions: {
-          '*': true
+          '*': true,
+          '*.*': true,
+          '*.*.*': true
         }
       },
       {
         key: 2,
         session: {},// Любая сессия
         actions: {
-          'test.createOne': false,
-          'test.updateOne': true,
-          'test.findMany': false,
-          'test.findOne': {objects: [{_key: "super-report"}]},
-          'test.deleteOne': false,
-          'city': false,
-          'city.*': true
-        }
-      }
-    ],
-    acl_: [
-      // Доступы админам
-      {
-        session: {'user.role.name': 'admin'},
-        actions: {
-          '*': {
-            allow: false
-          },
+          'tests.create': true,
+          'tests.update': false,
+          'tests.find.*': false,
+          'tests.find.one': {objects: [{_key: "super"}]},
+          'tests.delete': false,
         }
       },
-      // Доступы всем
-      {
-        session: {},// Любая сессия
-        actions: {
-          'report': {
-            allow: true,
-            actions: {
-              'create': {allow: false},
-              'edit': {allow: true},
-              'view': {allow: false},
-              'viewOne': {
-                allow: true,
-                objects: [{_key: "super-report"}],
-              },
-              'delete': {allow: false},
-            },
-          },
-          'city': {}
-        }
-      }
-    ]
+      // {
+      //   key: 3,
+      //   session: {'session.user._deleted': false},// Авторизован
+      //   actions: {
+      //     'tests.create': true,
+      //     'tests.update': true,
+      //     'tests.find.*': true,
+      //     'tests.delete': false,
+      //   }
+      // }
+    ],
   }
 };

@@ -19,7 +19,7 @@ module.exports = function ({
                              maxLength,
                              pattern,
                              format,
-                             description,
+                             description = 'Строка',
                              enums,
                              constant,
                              examples,

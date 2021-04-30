@@ -7,7 +7,6 @@ describe('Spec', () => {
 
   beforeAll(async () => {
     s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
-    // s.test = await s.services.getTest();
     s.spec = await s.services.getSpec();
   });
 

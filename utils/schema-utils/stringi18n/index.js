@@ -21,7 +21,7 @@ module.exports = function ({
                              maxLength = 500,
                              pattern,
                              format,
-                             description = '',
+                             description = 'Мультиязычная строка',
                              enums,
                              constant,
                              examples,
@@ -67,6 +67,9 @@ module.exports = function ({
   // }
   if (defaults) {
     result.default = defaults;
+  }
+  if (!other.title){
+    result.title = description;
   }
 
   return result;

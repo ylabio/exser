@@ -4,7 +4,7 @@ const {parseCommands} = require('./utils/array-utils');
 (async () => {
   // Configure service manager
   const services = new Services();
-  await services.init(['configs.js', 'configs.local.js']);
+  await services.init(['configs.js', 'configs.start.js', 'configs.local.js']);
   // Start some services by params from CLI
   // @example > node index.js rest-api --port:8080
   // @example await services.start([{name: rest-api, params: {port: 8080}}]);

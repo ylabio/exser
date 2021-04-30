@@ -9,6 +9,7 @@
 
 ```js
 router.post('/countries', {
+    operationId: 'countries.create',
     summary: 'Создание страны',
     description: 'Добавление новой страны в справочник',
     tags: ['Geo'],

@@ -17,12 +17,11 @@ describe('Storage.rel', () => {
     s.objects = s.storage.get('test');
     /** @type {SessionState} */
     data.session = s.sessions.create();
-    data.session.setAcceptLang('ru').setAuth({
-      user: {
-        _id: new ObjectID(),
-        _type: 'user',
-      }
-    });
+    data.session.lang = 'ru';
+    data.session.user = {
+      _id: new ObjectID(),
+      _type: 'user',
+    };
     s.spec.set('#/components/schemas/test.rel', {
       type: 'object',
       properties: {

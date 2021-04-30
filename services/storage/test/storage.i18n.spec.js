@@ -18,7 +18,7 @@ describe('Storage.i18n', () => {
         _id: new ObjectID(),
         _type: 'user',
       },
-      acceptLang: 'ru',
+      lang: 'ru',
     };
   });
 

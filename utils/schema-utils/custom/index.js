@@ -33,5 +33,8 @@ module.exports = function ({type, description = '', enums, constant, examples, e
   if (defaults !== undefined) {
     result.default = defaults;
   }
+  if (!other.title){
+    result.title = description;
+  }
   return result;
 };

@@ -13,7 +13,7 @@ const string = require('./../string');
  * @returns {Object}
  */
 module.exports = function ({
-                             description = '',
+                             description = 'Дата/время в ISO8601',
                              enums,
                              constant,
                              examples,
@@ -57,6 +57,9 @@ module.exports = function ({
   // }
   if (defaults) {
     result.default = defaults;
+  }
+  if (!other.title){
+    result.title = description;
   }
   return result;
 };

@@ -31,7 +31,7 @@ class I18nProperty extends Property{
       this.value = value;
     } else {
       // Установка языка по локали
-      const key = acceptLanguage.get(this.session.acceptLang && this.session.acceptLang!=='all' ? this.session.acceptLang : this.options.default);
+      const key = acceptLanguage.get(this.session.lang && this.session.lang!=='all' ? this.session.lang : this.options.default);
       this.value = {[key]: value};
     }
   }
@@ -41,10 +41,10 @@ class I18nProperty extends Property{
    * @returns {*}
    */
   valueOf() {
-    if (this.session.acceptLang === 'all'){
+    if (this.session.lang === 'all'){
       return this.value;
     }
-    const key = acceptLanguage.get(this.session.acceptLang ? this.session.acceptLang : this.options.default);
+    const key = acceptLanguage.get(this.session.lang ? this.session.lang : this.options.default);
     return this.value[key]; // @todo Ели нет key, то вернуть иное доступное значение?
   }
 
@@ -59,7 +59,7 @@ class I18nProperty extends Property{
   }
 
   mergeString(value ,kind){
-    const key = acceptLanguage.get(this.session.acceptLang && this.session.acceptLang !=='all' ? this.session.acceptLang : this.options.default);
+    const key = acceptLanguage.get(this.session.lang && this.session.lang !=='all' ? this.session.lang : this.options.default);
     const second = {[key]: value};
     if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE){
       return new I18nProperty({value: mc.merge(this.value, second), options: this.options, session: this.session});
