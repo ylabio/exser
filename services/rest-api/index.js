@@ -115,7 +115,7 @@ class RestAPI extends Service {
               // Трансформация настроек в параметр сваггера
               if (aclList.length === 0) {
                 // Вообще нет доступа - уведомляем об этом!
-                def.operationId = `${def.operationId || ''} ⛔️`;
+                def.summary = `${def.summary || ''} ⛔️`;
               } else {
                 // По умолчанию доступа нет вообще
                 let needAuth = false;
@@ -140,7 +140,7 @@ class RestAPI extends Service {
                 }
                 if (canPublic) {
                   // Возможен доступ без авторизации
-                  def.operationId = `${def.operationId || ''} 👀`;
+                  def.summary = `${def.summary || ''} 👀`;
                 }
               }
             }

@@ -1,40 +1,30 @@
-const {errors, objectUtils, queryUtils, schemaUtils} = require('../../../utils');
+const {errors, objectUtils, queryUtils, schemaUtils: schema} = require('../../../utils');
 
 module.exports = async (router, services) => {
 
   const spec = await services.getSpec();
+  const tags = spec.setTags({name: 'Tests', description: 'Тестовая модель'});
+
   const storage = await services.getStorage();
   /** @type {Test} */
   const tests = storage.get('test');
 
   /**
-   * Создание
+   * POST
    */
-  router.post('/tests', {
-    operationId: 'tests.create',
+  router.post('/tests', schema.route({
     summary: 'Создание',
-    description: 'Создание объекта',
-    //session: schemaUtils.sessionUser(['admin']),
-    tags: ['Tests'],
-    requestBody: {
-      content: {
-        'application/json': {schema: {$ref: '#/components/schemas/storage.test'}}
-      }
-    },
+    action: 'tests.create',
+    tags: tags,
+    requestBody: schema.body({schema: {$ref: '#/components/schemas/storage.test'}}),
     parameters: [
-      {$ref: '#/components/parameters/lang'},
-      {
-        in: 'query',
-        name: 'fields',
-        description: 'Выбираемые поля',
-        schema: {type: 'string'},
-        example: '*'
-      }
+      schema.paramFields({}),
+      schema.paramLang({}),
     ],
     responses: {
-      200: schemaUtils.success({schema: {$ref: '#/components/schemas/storage.test'}})
+      201: schema.bodyResult({schema: {$ref: '#/components/schemas/storage.test'}})
     }
-  }, async (req) => {
+  }), async (req) => {
     return await tests.createOne({
       body: req.body,
       session: req.session,
@@ -43,38 +33,24 @@ module.exports = async (router, services) => {
   });
 
   /**
-   * Выбор списка
+   * GET
    */
-  router.get('/tests', {
-    operationId: 'tests.find.many',
+  router.get('/tests', schema.route({
     summary: 'Выбор списка (поиск)',
-    description: 'Список объектов с фильтром',
-    tags: ['Tests'],
-    //session: schemaUtils.sessionUser(['user']),
+    action: 'tests.find.many',
+    tags: tags,
     parameters: [
-      {
-        in: 'query',
-        name: 'search[query]',
-        description: 'Общий поиск по совпадению строке',
-        schema: {type: 'string'},
-        required: false
-      },
-      {$ref: '#/components/parameters/lang'},
-      {$ref: '#/components/parameters/sort'},
-      {$ref: '#/components/parameters/limit'},
-      {$ref: '#/components/parameters/skip'},
-      {
-        in: 'query',
-        name: 'fields',
-        description: 'Выбираемые поля',
-        schema: {type: 'string'},
-        example: '*'
-      },
+      schema.paramSearch({name: 'query', description: 'Общий поиск на совпадение строке'}),
+      schema.paramFields({}),
+      schema.paramLimit({}),
+      schema.paramSkip({}),
+      schema.paramSort({}),
+      schema.paramLang({}),
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}})
+      200: schema.bodyResultList({schema: {$ref: '#/components/schemas/storage.test'}})
     }
-  }, async (req) => {
+  }), async (req) => {
     const filter = queryUtils.makeFilter(req.query.search, {
       query: {cond: 'like', fields: ['name', 'status']},
     });
@@ -89,35 +65,22 @@ module.exports = async (router, services) => {
   });
 
   /**
-   * Выбор одного
+   * GET LIST
    */
-  router.get('/tests/:id', {
-    operationId: 'tests.find.one',
-    summary: 'Выбор одного',
-    description: 'Объекта по идентификатору',
-    tags: ['Tests'],
-    //session: schemaUtils.sessionUser(['user']),
+  router.get('/tests/:id', schema.route({
+    summary: 'Выбор одного по идентификатору',
+    action: 'tests.find.one',
+    tags: tags,
     parameters: [
-      {
-        in: 'path',
-        name: 'id',
-        schema: {type: 'string'},
-        description: 'Идентификатор объекта'
-      },
-      {$ref: '#/components/parameters/lang'},
-      {
-        in: 'query',
-        name: 'fields',
-        description: 'Выбираемые поля',
-        schema: {type: 'string'}, example: '*'
-      }
+      schema.param({name: 'id', in: 'path', description: 'Идентификатор объекта'}),
+      schema.paramFields({}),
+      schema.paramLang({}),
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
-      404: schemaUtils.error({description: 'Not Found', status: 404})
+      200: schema.bodyResult({schema: {$ref: '#/components/schemas/storage.test'}}),
+      404: schema.bodyError({description: 'Not Found'})
     }
-  }, async (req/*, res*/) => {
-
+  }), async (req/*, res*/) => {
     return await tests.getOne({
       filter: queryUtils.makeFilter({_id: req.params.id}, {
         _id: {cond: 'eq', type: 'ObjectId'}
@@ -128,41 +91,23 @@ module.exports = async (router, services) => {
   });
 
   /**
-   * Редактирование
+   * PUT (PATCH)
    */
-  router.put('/tests/:id', {
-    operationId: 'tests.update',
+  router.put('/tests/:id', schema.route({
     summary: 'Редактирование',
-    description: 'Изменение объекта',
-    tags: ['Tests'],
-    session: schemaUtils.sessionUser(['admin']),
-    requestBody: {
-      content: {
-        'application/json': {schema: {$ref: '#/components/schemas/storage.test'}}
-      }
-    },
+    action: 'tests.update',
+    tags: tags,
+    requestBody: schema.body({schema: {$ref: '#/components/schemas/storage.test'}}),
     parameters: [
-      {
-        in: 'path',
-        name: 'id',
-        description: 'id объекта',
-        schema: {type: 'string'}
-      },
-      {$ref: '#/components/parameters/lang'},
-      {
-        in: 'query',
-        name: 'fields',
-        description: 'Выбираемые поля',
-        schema: {type: 'string'},
-        example: '*'
-      }
+      schema.param({name: 'id', in: 'path', description: 'Идентификатор объекта'}),
+      schema.paramFields({}),
+      schema.paramLang({}),
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
-      404: schemaUtils.error({description: 'Not Found', status: 404})
+      200: schema.bodyResult({schema: {$ref: '#/components/schemas/storage.test'}}),
+      404: schema.bodyError({description: 'Not Found'})
     }
-  }, async (req) => {
-
+  }), async (req) => {
     return await tests.updateOne({
       id: req.params.id,
       body: req.body,
@@ -172,41 +117,57 @@ module.exports = async (router, services) => {
   });
 
   /**
-   * Удаление
+   * POST Upload
    */
-  router.delete('/tests/:id', {
-    operationId: 'tests.delete',
-    summary: 'Удаление',
-    description: 'Удаление объекта',
-    session: schemaUtils.sessionUser(['admin']),
-    tags: ['Tests'],
+  router.post('/files', schema.route({
+    summary: 'Загрузка и создание',
+    action: 'files.upload',
+    description: 'Загрузка файла на сервер. Используется потоковая загрузка с прогрессом загрузки (HTML5)',
+    tags: tags,
+    requestBody: schema.body({
+      description: 'Файл для загрузки',
+      mediaType: 'multipart/form-data',
+      schema: schema.object({
+        properties: {
+          file: schema.string({format: 'binary'})
+        }
+      })
+    }),
     parameters: [
-      {
-        in: 'path',
-        name: 'id',
-        description: 'Идентификатор объекта',
-        schema: {type: 'string'}
-      },
-      {$ref: '#/components/parameters/lang'},
-      {
-        in: 'query',
-        name: 'fields',
-        description: 'Выбираемые поля',
-        schema: {type: 'string'},
-        example: '_id'
-      }
+      schema.paramFields({}),
     ],
     responses: {
-      200: schemaUtils.success({schema:{$ref: '#/components/schemas/storage.test'}}),
-      404: schemaUtils.error({description: 'Not Found', status: 404})
+      201: schema.bodyResult({schema: {$ref: '#/components/schemas/storage.test'}}),
+      400: schema.bodyError({description: 'Bad Request'})
     }
-  }, async (req) => {
-
-    const result = await tests.deleteOne({
-      id: req.params.id,
-      session: req.session,
-      //fields: queryUtils.parseFields(req.query.fields)
-    });
-    return await tests.view({object: result, session, fields: queryUtils.parseFields(req.query.fields)})
+  }), async (req, res, next) => {
+    return true;
   });
+
+  /**
+   * DELETE
+   */
+  // router.delete('/tests/:id', schema.route({
+  //   action: 'tests.delete',
+  //   summary: 'Удаление',
+  //   description: 'Удаление объекта',
+  //   tags: ['Tests'],
+  //   parameters: {
+  //     id: {in: 'path', description: 'Идентификатор объекта', schema: {type: 'string'}},
+  //     lang: {$ref: '#/components/parameters/lang'},
+  //     fields: {description: 'Выбираемые поля', schema: {type: 'string'}, example: '_id'}
+  //   },
+  //   responses: {
+  //     200: schema.success({schema:{$ref: '#/components/schemas/storage.test'}}),
+  //     404: schema.error({description: 'Not Found', status: 404})
+  //   }
+  // }), async (req) => {
+  //
+  //   const result = await tests.deleteOne({
+  //     id: req.params.id,
+  //     session: req.session,
+  //     //fields: queryUtils.parseFields(req.query.fields)
+  //   });
+  //   return await tests.view({object: result, session, fields: queryUtils.parseFields(req.query.fields)})
+  // });
 };

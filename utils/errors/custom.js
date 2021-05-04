@@ -10,8 +10,9 @@ module.exports = class Custom extends Error {
 
   toJSON() {
     return {
-      id: `${this.status}.${this.code}`,
-      code: this.name,
+      name: this.name,
+      status: this.status,
+      code: this.code,
       message: this.message,
       data: this.data
     };

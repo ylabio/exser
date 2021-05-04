@@ -88,7 +88,7 @@ class Spec extends Service {
     }
     let relPath = path.match(/^#?\/?(.*)$/);
     if (relPath) {
-      return objectUtils.get(this.specification, relPath[1], undefined, '/');
+      return mc.utils.get(this.specification, relPath[1], undefined, '/');
     }
     return undefined;
   }
@@ -104,7 +104,7 @@ class Spec extends Service {
     if (relPath) {
       let currentValue = this.get(path);
       let newValue = mc.update(currentValue, def);
-      objectUtils.set(this.specification, relPath[1], newValue, false, '/');
+      mc.utils.set(this.specification, relPath[1], newValue, false, '/');
     }
     this.isChanged = true;
   }
@@ -129,6 +129,30 @@ class Spec extends Service {
       }
     }
     return this._shortcuts[path];
+  }
+
+  /**
+   * Установка описания тега, используемого в аннотациях роутеров OpenAPI
+   * @param name {String}
+   * @param [description] {String} Если undefined, то не будет менять текущее значение
+   */
+  setTag({name, description}){
+    const tag = this.specification.tags.find(item => item.name === name);
+    if (tag){
+      if (typeof description !== undefined) tag.description = description;
+    } else {
+      this.specification.tags.push({name, description})
+    }
+    return name;
+  }
+
+  /**
+   * Установка множества тегов за раз
+   * @param tags {{name, description}}
+   * @returns {Array<String>} Массив с названиями тегов
+   */
+  setTags(...tags){
+    return tags.map(params => this.setTag(params));
   }
 
   /**

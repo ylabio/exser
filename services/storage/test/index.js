@@ -18,7 +18,7 @@ class Test extends Model {
       },
       // Полная схема объекта
       properties: {
-        name: type.string({maxLength: 100}),
+        name: type.string({maxLength: 100, example: '999'}),
         _id1: type.objectId({description: 'Идентификатор ObjectId'}),
         _id2: type.objectId({description: 'Идентификатор ObjectId'}),
         _id3: type.objectId({description: 'Идентификатор ObjectId', empty: true}),
