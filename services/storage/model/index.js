@@ -1,8 +1,6 @@
 const ObjectID = require('mongodb').ObjectID;
-const moment = require('moment');
-const {errors, stringUtils} = require('../../../utils');
+const {strings, schema} = require('../../../utils');
 const deepEqual = require('deep-equal');
-const type = require('../../../utils/schema-utils');
 const mc = require('merge-change');
 const Service = require('./../../service');
 
@@ -16,7 +14,7 @@ class Model extends Service {
    */
   name() {
     if (!this._name) {
-      this._name = stringUtils.toDash(this.constructor.name);
+      this._name = strings.toDash(this.constructor.name);
     }
     return this._name;
   }
@@ -72,7 +70,7 @@ class Model extends Service {
    * @returns {{collection: string, indexes: {}}}
    */
   define() {
-    return type.model({
+    return schema.model({
       // Заголовок модели в документации
       title: 'Объект',
       // Название коллекции в mongodb
@@ -87,12 +85,12 @@ class Model extends Service {
       options: {},
       // Свойства модели в JSONSchema. Используются функции для генерации фрагментов схем.
       properties: {
-        _id: type.objectId({description: 'Идентификатор ObjectId'}),
-        _type: type.string({description: 'Тип объекта', defaults: this.name()}),
-        _deleted: type.boolean({description: 'Признак, удалён ли объект', defaults: false}),
-        dateCreate: type.date({description: 'Дата и время создания'}),
-        dateUpdate: type.date({description: 'Дата и время обновления'}),
-        // proto: type.rel({description: 'Прототип', model: [], tree: 'proto'}),
+        _id: schema.objectId({description: 'Идентификатор ObjectId'}),
+        _type: schema.string({description: 'Тип объекта', defaults: this.name()}),
+        _deleted: schema.boolean({description: 'Признак, удалён ли объект', defaults: false}),
+        dateCreate: schema.date({description: 'Дата и время создания'}),
+        dateUpdate: schema.date({description: 'Дата и время обновления'}),
+        // proto: schema.rel({description: 'Прототип', model: [], tree: 'proto'}),
       },
       required: []
     });
@@ -122,7 +120,7 @@ class Model extends Service {
    */
   async findMany({filter, limit = 10, skip = 0, sort = {}, session, callback}) {
     const cursor = await this.native.find(filter).sort(sort).skip(parseInt(skip) || 0);
-    if (limit !== Infinity) {
+    if (limit !== Infinity && limit !== '*') {
       cursor.limit(parseInt(limit) || 10);
     }
     let i = 0;

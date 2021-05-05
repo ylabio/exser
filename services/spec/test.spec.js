@@ -1,4 +1,4 @@
-const {schemaUtils} = require('../../utils');
+const utils = require('../../utils');
 const Services = require('../index');
 
 describe('Spec', () => {
@@ -81,8 +81,8 @@ describe('Spec', () => {
     s.spec.set('#/components/schemas/test.object', {
       type: 'object',
       properties: {
-        name: schemaUtils.string({}),
-        value: schemaUtils.number({})
+        name: utils.schema.string({}),
+        value: utils.schema.number({})
       },
       additionalProperties: false
       //required: ['options']
@@ -99,6 +99,6 @@ describe('Spec', () => {
     const x = new X('x', 0);
     const result = await s.spec.validate('#/components/schemas/test.object', x);
 
-    console.log(x, result, x === result, x.constructor.name);
+    // console.log(x, result, x === result, x.constructor.name);
   })
 });

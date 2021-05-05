@@ -47,7 +47,7 @@
     "lodash.camelcase": "^4.3.0",
     "lodash.isequal": "^4.5.0",
     "lodash.upperfirst": "^4.3.1",
-    "merge-change": "^1.6.10",
+    "merge-change": "^1.6.11",
     "moment": "^2.29.1",
     "mongodb": "^3.6.6",
     "morgan": "^1.10.0",

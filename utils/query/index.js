@@ -174,6 +174,7 @@ const queryUtils = {
                          typeField = '_type',
                          parentFields = undefined,
                          currentPath = '',
+                         action
                        }) => {
     fields = queryUtils.parseFields(fields);
     // Возврат всего значения в простом формате
@@ -226,7 +227,7 @@ const queryUtils = {
             $set = mc.utils.plain(object);
             if (canLoad) {
               // Все свойства из подгруженного объекта
-              if (!objectLoad) objectLoad = await object.load();
+              if (!objectLoad) objectLoad = await object.load({action});
               $preset = mc.utils.plain(objectLoad);
             }
           } else {
@@ -234,7 +235,7 @@ const queryUtils = {
             if (!(name in object)) {
               // Подгружаем объект, чтобы от туда попробовать взять
               if (canLoad) {
-                if (!objectLoad) objectLoad = await object.load();
+                if (!objectLoad) objectLoad = await object.load({action});
               }
               // Если нет objectLoad или в objectLoad нет свойства, то установка defaultValue
               if (!objectLoad || !(name in objectLoad)) {
@@ -249,6 +250,7 @@ const queryUtils = {
                   depth,
                   limit,
                   currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+                  action
                 });
               }
             } else {
@@ -266,6 +268,7 @@ const queryUtils = {
                     depth,
                     limit,
                     currentPath,
+                    action
                   });
                   if (fieldValue !== undefined) {
                     $set[name].push(fieldValue);
@@ -281,6 +284,7 @@ const queryUtils = {
                   depth,
                   limit,
                   currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+                  action
                 });
                 if (fieldValue !== undefined) {
                   $set[name] = fieldValue;
@@ -292,352 +296,6 @@ const queryUtils = {
       }
     }
     return mc.update($preset, {$set, $unset});
-
-    // // Иначе fields содержит перечень полей или по крайней мере поле-шаблон *
-    // // Нужно ли подгружать объект?
-    // // Если есть * то нужно и подгрузить объект и добавить все его свойства в результат
-    // //  но не нужно обрабатывать в plain вложенность, так как возможны уточнения для свойств
-    // // Если свойство добавлено из-за * и после не указано вложенность для него, то
-    //
-    // // Подгружался ли объекта
-    // //let rel = undefined;
-    // let isLoad = false;
-    // const canLoad = (object && typeof object.load === 'function');
-    // let result = {};
-    // if ('*' in fields) {
-    //   result = mc.utils.plain(object);
-    //   if (!isLoad && canLoad)  {
-    //     rel = await object.load();
-    //     isLoad = true;
-    //     result = mc.merge(mc.utils.plain(rel), result);
-    //   }
-    //   result = mc.merge(rel, mc.utils.plain(object));
-    //   // Клонирование fields с удалением *
-    //   fields = mc.merge(fields, {$unset:['*']});
-    // }
-    // // Перебираем поля, чтобы добавить их или удалить
-    // const fieldNames = Object.keys(fields);
-    // for (const fieldName of fieldNames) {
-    //   // Исключение поля
-    //   if (fields[fieldName] === false){
-    //     if (fieldName in result){
-    //       delete result[fieldName];
-    //     }
-    //   } else {
-    //     // Попытка подгрузить объект, если нет желаемого поля
-    //     if (!(fieldName in object)) {
-    //       if (!isLoad && canLoad) {
-    //         await object.load();
-    //       }
-    //     }
-    //   }
-    // }
-    //
-    //
-    // // Подгрузка свойств объекта, если есть метод load()
-    // if (object && typeof object.load === 'function') {
-    //   // Если нет полей в fields, то подгружать не будем, но нужно лучше как-то сделать
-    //   if (typeof fields === 'object') {
-    //     await object.load();
-    //   }
-    // }
-    // if (fields === true) {
-    //   return mc.utils.plain(object);
-    // } else {
-    //   // В простое значение первый уровень вложенности для последующей обработки свойств
-    //   object = mc.utils.plain(object, false);
-    // }
-    // //let result = {};
-    // // Если есть *, то по умолчанию берем все поля.  Далее возможны исключение полей
-    // if ('*' in fields) {
-    //   result = object;//mc.merge(object, {});
-    // }
-    // const keys = Object.keys(fields);
-    // let isLoaded = false;
-    // for (const key of keys) {
-    //   let inner;
-    //   if (key in object) {
-    //     try {
-    //       const type = mc.utils.type(object[key]);
-    //       if (type === 'Array') {
-    //         result[key] = [];
-    //         for (let item of object[key]) {
-    //           inner = await queryUtils.loadByFields({
-    //             object: item,
-    //             fields: fields[key]
-    //           });
-    //           result[key].push(inner);
-    //         }
-    //       } else if (type === 'Object' && mc.utils.type(fields[key]) === 'Object') {
-    //         // Вложенный объект
-    //         inner = await queryUtils.loadByFields({
-    //           object: object[key],
-    //           fields: fields[key]
-    //         });
-    //         // Исключение свойств
-    //         const subKeys = Object.keys(fields[key]);
-    //         for (const subKey of subKeys) {
-    //           if (fields[key][subKeys] === false && (subKey in inner)) {
-    //             delete inner[subKeys];
-    //           }
-    //         }
-    //         result[key] = inner;
-    //       } else {
-    //         result[key] = object[key];
-    //       }
-    //     } catch (e) {
-    //       console.log(key, object, fields);
-    //       throw e;
-    //     }
-    //   } else if (typeof notExistSet !== 'undefined' && key !== '*') {
-    //     result[key] = notExistSet;
-    //   }
-    //   return result;
-    // }
-  },
-
-  /**
-   * Форматирование множественного параметра поиска (объекта фильтра) в mongodb объект фильтра
-   * @param searchField String|Object
-   * @param propertyTypes Object По ключ свойства параметры сравнения для него
-   * {search: {
-   *    kind:'regex', //тип сравнения, regex(по умолчанию), const
-   *    field
-   *    fields:['name','surname'], //В каких полях сравнивать c $or и если отличается от key
-   *    },
-   *  price: {
-   *    kind:'const',
-   *  }
-   * @returns Object|null
-   */
-  formattingSearch: (searchField, propertyTypes = {}) => {
-    let result = [];
-    if (!Array.isArray(searchField) && searchField === Object(searchField)) {
-      const keys = Object.keys(searchField);
-      for (let key of keys) {
-        if (propertyTypes[key] && typeof searchField[key] !== 'undefined') {
-          let value = searchField[key];
-          if (typeof propertyTypes[key] === 'function') {
-            propertyTypes[key] = propertyTypes[key](searchField[key]);
-          }
-          if ('value' in propertyTypes[key]) {
-            value = propertyTypes[key].value;
-          }
-          if (propertyTypes[key]) {
-            if (propertyTypes[key].field) {
-              propertyTypes[key].fields = propertyTypes[key].field;
-            }
-            if (!propertyTypes[key].fields || !propertyTypes[key].fields.length) {
-              propertyTypes[key].fields = [key];
-            }
-            if (!Array.isArray(propertyTypes[key].fields)) {
-              propertyTypes[key].fields = [propertyTypes[key].fields];
-            }
-
-            if (propertyTypes[key].type) {
-              propertyTypes[key].types = propertyTypes[key].type;
-            }
-            if (propertyTypes[key].cond) {
-              propertyTypes[key].kind = propertyTypes[key].cond;
-            }
-            const cond = queryUtils.formattingSimpleSearch(value, propertyTypes[key]);
-            if (cond) {
-              if (Array.isArray(cond)) {
-                result = result.concat(cond);
-              } else {
-                result.push(cond);
-              }
-            }
-          }
-        }
-      }
-    }
-    return result.length ? {$and: result} : {};
-  },
-
-  /**
-   * Форматер строки в объект фильтра mongodb
-   * @param searchValue Строка фильтра
-   * @param options Object Опции сравнения
-   * {
-   *    kind:'regex', //тип сравнения, regex(по умолчанию), const
-   *    fields:['name','surname'], //В каких полях сравнивать c $or или в каком одном
-   *    }
-   * @returns {Object}
-   */
-  formattingSimpleSearch(searchValue, options = {
-    kind: 'regex',
-    fields: ['title'],
-    exists: false,
-    types: 'auto',
-    trim: true
-  }) {
-    if (!options.kind) {
-      options.kind = 'regex';
-    }
-    let values;
-    let $exists = true;
-    let $in = [];
-    if (typeof searchValue !== 'string') {
-      searchValue = [searchValue];
-    } else {
-      searchValue = searchValue.split('|');
-    }
-
-    searchValue.map(value => {
-      if (typeof options.kind === 'function') {
-        $in.push(options.kind(value, options));
-      } else {
-        switch (options.kind.toLowerCase()) {
-          case 'object-id':
-          case 'objectid':
-            if (value) {
-              if (value === 'null') {
-                $exists = false;
-              } else {
-                $in.push(queryUtils.type(value, 'ObjectId', options.types));
-              }
-            }
-            break;
-          case 'is':
-            $in.push(new RegExp(`^${escapeStringRegexp(value.trim())}($|-)`, 'i'));
-            break;
-          case 'regex':
-          case 'regexp':
-          case 'like':
-            $in.push(new RegExp(escapeStringRegexp(value.trim()), 'i'));
-            break;
-          case 'regex-start':
-          case 'regexp-start':
-          case 'like-start':
-            $in.push(new RegExp('^' + escapeStringRegexp(value.trim()), 'i'));
-            break;
-          case 'bool':
-          case 'boolean':
-            if (value === 'null') {
-              $exists = false;
-            } else {
-              $in.push(!(value === 'false' || value === '0' || value === ''));
-            }
-            break;
-          case 'between':
-            values = value.split(';');
-            if (values.length === 2) {
-              $in.push({
-                  $gte: queryUtils.type(values[0], options.types),
-                  $lte: queryUtils.type(values[1], options.types)
-                }
-              );
-            } else {
-              $in.push({$eq: queryUtils.type(values[0], options.types)});
-            }
-            break;
-          case 'between-age':
-            values = value.split(';');
-            if (values.length === 2) {
-              $in.push({
-                $gte: moment().subtract(values[1], 'years').toDate(),
-                $lte: moment().subtract(values[0], 'years').toDate()
-              });
-            } else {
-              $in.push({
-                $gte: moment().subtract(values[0], 'years').toDate(),
-                $lte: moment().subtract(values[0] + 1, 'years').toDate()
-              });
-            }
-            break;
-          case 'between-date':
-            values = value.split(';');
-            if (values.length === 2) {
-              $in.push({
-                $gte: moment(values[0]).toDate(),
-                $lte: moment(values[1]).toDate()
-              });
-            } else {
-              $in.push({
-                $eq: moment(values[0]).toDate()
-              });
-            }
-            break;
-          case 'range':
-            values = value.split(';');
-            if (values.length === 2) {
-              const greaterThan = parseFloat(values[0]);
-              const lessThan = parseFloat(values[1]);
-              $in.push({
-                ...greaterThan ? {$gte: greaterThan} : {},
-                ...lessThan ? {$lte: lessThan} : {},
-              });
-            } else {
-              $in.push({
-                $eq: parseFloat(values[0])
-              });
-            }
-            break;
-          case 'range-date':
-          case 'range-dates':
-            values = value.split(';');
-            if (values.length === 2) {
-              const greaterThan = values[0] ? moment(values[0]).toDate() : '';
-              const lessThan = values[1] ? moment(values[1]).toDate() : '';
-              $in.push({
-                ...greaterThan ? {$gte: greaterThan} : {},
-                ...lessThan ? {$lte: lessThan} : {},
-              });
-            } else {
-              $in.push({
-                $eq: values[0] ? moment(values[0]).toDate() : '',
-              });
-            }
-            break;
-          case 'gt':
-            $in.push({$gt: queryUtils.type(value, options.types)});
-            break;
-          case 'lt':
-            $in.push({$lt: queryUtils.type(value, options.types)});
-            break;
-          case 'gte':
-            $in.push({$gte: queryUtils.type(value, options.types)});
-            break;
-          case 'lte':
-            $in.push({$lte: queryUtils.type(value, options.types)});
-            break;
-          case 'const':
-          case 'eq':
-            if (value !== '') {
-              if (value === 'null') {
-                $exists = false;
-              } else {
-                $in.push(queryUtils.type(value, options.types));
-              }
-            }
-            break;
-          default:
-            $in.push({[options.kind]: queryUtils.type(value, options.types, options.trim)});
-        }
-      }
-    });
-    let result;
-    if ($in.length > 0 && options.fields && options.fields.length) {
-      if ($in.length > 1) {
-        result = {$in};
-      } else if ($in.length > 0) {
-        result = $in[0];
-      }
-      if (options.fields.length === 1) {
-        return [{[options.fields[0]]: result}];
-      } else {
-        return [{$or: options.fields.map(field => ({[field]: result}))}];
-      }
-    } else {
-      if (options.exists && !$exists && options.fields && options.fields.length === 1) {
-        result = [{[options.fields[0]]: {$exists: false}}];
-      }
-      if (options.empty && !$exists && options.fields && options.fields.length === 1) {
-        result = [{[options.fields[0]]: ''}];
-      }
-      return result;
-    }
   },
 
   /**
@@ -645,7 +303,10 @@ const queryUtils = {
    * @param sortField String
    * @returns Object
    */
-  formattingSort: (sortField) => {
+  parseSort: (sortField) => {
+    if (typeof sortField === 'object'){
+      return sortField;
+    }
     if (typeof sortField === 'string') {
       let fields = sortField.split(',').map(field => field.replace(/\s/g, ''));
       let result = {};
@@ -701,8 +362,12 @@ const queryUtils = {
           );
         if (typeof filterMap[key] === 'function') {
           const query = filterMap[key](value, key, searchFields);
-          if (typeof query !== 'undefined') {
-            result.push(query);
+          if (query !== null && typeof query === 'object') {
+            if (query === false){
+              result.push({_id: 0});
+            } else {
+              result.push(query);
+            }
           }
         } else if (typeof value !== 'undefined') {
           // Поля, для которых формировать условие на value
@@ -871,7 +536,7 @@ const queryUtils = {
         itemsCond = '$or';
       } else {
         // AND
-        items = condition.split('&');
+        items = condition.split('+');
         itemsCond = '$and';
       }
 

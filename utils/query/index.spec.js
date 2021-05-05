@@ -139,7 +139,7 @@ describe('Parse fields parameter', () => {
 
   test('typed props', () => {
     let fields = queryUtils.parseFields('relative(user:surname, product:price(value, unit), product:title)');
-    console.log(fields);
+    //console.log(fields);
     expect(fields).toEqual({
       relative: {
         'user:surname': true,
@@ -166,178 +166,38 @@ describe('Parse fields parameter', () => {
 });
 
 
-describe('Formatting search parameter', () => {
-  test('formatting simple text', () => {
-    let search = queryUtils.formattingSimpleSearch('search string');
-    expect(search).toEqual([{title: /search string/i}]);
-  });
-
-  test('parse array with $or', () => {
-    let search = queryUtils.formattingSearch(
-      {'series': 'single|episodes', 'origin': 'avatar'},
-      {series: {}, origin: {}}
-    );
-    expect(search).toEqual({
-      $and: [
-        {
-          series: {
-            $in: [/single/i, /episodes/i]
-          }
-        },
-        {origin: /avatar/i}
-      ]
-    });
-  });
-
-  test('parse array with $or and const', () => {
-    let search = queryUtils.formattingSearch(
-      {'series': 'single|episodes', 'origin': 'avatar'},
-      {series: {kind: 'const'}, origin: {kind: 'const'}}
-    );
-    expect(search).toEqual({
-      $and: [{
-        series: {
-          $in: ['single', 'episodes']
-        }
-      },
-        {origin: 'avatar'}]
-    });
-  });
-
-  test('if search is array', () => {
-    let search = queryUtils.formattingSearch(['search1', 'search2']);
-    expect(search).toEqual({});
-  });
-
-  test('multy fields', () => {
-    let search = queryUtils.formattingSimpleSearch('text1|text2', {
-      kind: 'const',
-      fields: ['name', 'surname']
-    });
-    expect(search).toEqual([{
-        $or: [
-          {name: {$in: ['text1', 'text2']}},
-          {surname: {$in: ['text1', 'text2']}}
-        ]
-      }]
-    );
-  });
-
-  test('multy fields for object', () => {
-    // поле search заменяется на name и surname
-    let search = queryUtils.formattingSearch(
-      {search: 'text1|text2'},
-      {search: {kind: 'const', fields: ['name', 'surname']}}
-    );
-    expect(search).toEqual({
-      $and: [{
-        $or: [
-          {name: {$in: ['text1', 'text2']}},
-          {surname: {$in: ['text1', 'text2']}}
-        ]
-      }]
-    });
-  });
-
-  test('Type convert', () => {
-
-    let searchField = {
-      _id: '5c2f3ed1fee590496c93779d',
-      _idBad: ' bad ',
-      _idNull: '  null ',
-      _idAuto: '  5c2f3ed1fee590496c93779d   ',
-      numberAuto: ' 300.3 ',
-      numberAutoComma: '  400,44 44  ',
-      dateAuto: ' 2019-12-31T21:29:43.000Z ',
-      boolAuto: ' false ',
-      nullAuto: '  null  ',
-      stringAuto: '  string  ',
-      stringAutoNotTrim: '  string  '
-    };
-    let search = queryUtils.formattingSearch(searchField, {
-        //_id: {kind: '$eq', fields: ['_id'], type: 'ObjectId'},
-        _idBad: {kind: '$eq', field: '_idBad', types: ['ObjectId', 'Number']},
-        _idNull: {kind: '$eq', field: '_idNull', types: ['ObjectId', 'Null']},
-        //_idAuto: {kind: '$eq', fields: ['_idAuto']},
-        numberAuto: {kind: '$eq', field: 'numberAuto'},
-        numberAutoComma: {kind: '$eq', field: 'numberAutoComma'},
-        dateAuto: {kind: '$eq', field: 'dateAuto'},
-        boolAuto: {kind: '$eq', field: 'boolAuto'},
-        nullAuto: {kind: '$eq', field: 'nullAuto'},
-        stringAuto: {kind: '$eq', field: 'stringAuto'},
-        stringAutoNotTrim: {kind: '$eq', field: 'stringAutoNotTrim', trim: false},
-      }
-    );
-    expect(search).toEqual({
-      $and: [
-        //{_id: {'$eq': '5c2f3ed1fee590496c93779d'}},
-        {_idBad: {'$eq': 'bad'}},
-        {_idNull: {'$eq': null}},
-        //{_idAuto: {'$eq': '5c2f3ed1fee590496c93779d'}},
-        {numberAuto: {'$eq': 300.3}},
-        {numberAutoComma: {'$eq': 400.4444}},
-        {dateAuto: {'$eq': new Date('2019-12-31T21:29:43.000Z')}},
-        {boolAuto: {'$eq': false}},
-        {nullAuto: {'$eq': null}},
-        {stringAuto: {'$eq': 'string'}},
-        {stringAutoNotTrim: {'$eq': '  string  '}}]
-    });
-    // ObjectID
-    let search2 = queryUtils.formattingSearch(searchField, {
-        _id: {kind: '$eq', fields: ['_id'], type: 'ObjectId'},
-        _idAuto: {kind: '$eq', fields: ['_idAuto']},
-      }
-    );
-    expect(search2.$and[0]._id.$eq).toBeInstanceOf(ObjectID);
-    expect(search2.$and[1]._idAuto.$eq).toBeInstanceOf(ObjectID);
-    //console.log(/*JSON.stringify(search), */search.$and);
-  });
-
-  test('Custom keys', () => {
-    let searchField = {
-      objectId: ' 5c2f3ed1fee590496c93779d ',
-      like: 'name|surname'
-    };
-    let search = queryUtils.formattingSearch(searchField, {
-        objectId: {kind: 'ObjectId', fields: ['_id']},
-        like: {kind: 'like', fields: ['name']},
-      }
-    );
-    //console.log(JSON.stringify(search, null, 2), search.$and);
-  });
-});
-
-describe('Formatting sort parameter', () => {
+describe('Parse sort parameter', () => {
   test('asc sort', () => {
-    let sort = queryUtils.formattingSort('name');
+    let sort = queryUtils.parseSort('name');
     expect(sort).toEqual({name: 1});
   });
 
   test('desc sort', () => {
-    let sort = queryUtils.formattingSort('-name');
+    let sort = queryUtils.parseSort('-name');
     expect(sort).toEqual({name: -1});
   });
 
   test('multiple asc and desc sort', () => {
-    let sort = queryUtils.formattingSort('name,-title,price,-create');
+    let sort = queryUtils.parseSort('name,-title,price,-create');
     expect(sort).toEqual({name: 1, title: -1, price: 1, create: -1});
   });
 
   test('multiple sort with spaces', () => {
-    let sort = queryUtils.formattingSort(' name, -title  , price,-create  ');
+    let sort = queryUtils.parseSort(' name, -title  , price,-create  ');
     expect(sort).toEqual({name: 1, title: -1, price: 1, create: -1});
   });
 
   test('empty asc sort', () => {
-    let sort = queryUtils.formattingSort('');
+    let sort = queryUtils.parseSort('');
     expect(sort).toEqual(null);
   });
 
   test('empty desc sort', () => {
-    let sort = queryUtils.formattingSort('-');
+    let sort = queryUtils.parseSort('-');
     expect(sort).toEqual(null);
   });
 });
+
 
 describe('Parse condition flex', () => {
   test('search[prop]=value', () => {
@@ -415,17 +275,17 @@ describe('Parse condition flex', () => {
     expect(cond).toEqual({$or: [{field: {$gt: 'exp1'}}, {field: {$ne: 'exp2'}}]});
   });
 
-  test('search[prop]=exp1&exp2', () => {
+  test('search[prop]=exp1+exp2', () => {
     let cond = queryUtils.parseConditionFlex('exp1+exp2', 'field');
     expect(cond).toEqual({$and: [{field: {$eq: 'exp1'}}, {field: {$eq: 'exp2'}}]});
   });
 
-  test('search[prop]=!exp1&!exp2', () => {
+  test('search[prop]=!exp1+!exp2', () => {
     let cond = queryUtils.parseConditionFlex('!exp1+!exp2', 'field');
     expect(cond).toEqual({$and: [{field: {$ne: 'exp1'}}, {field: {$ne: 'exp2'}}]});
   });
 
-  test('search[prop]=^exp1&!exp2', () => {
+  test('search[prop]=^exp1+!exp2', () => {
     let cond = queryUtils.parseConditionFlex('^exp1+!exp2', 'field');
     expect(cond).toEqual({$and: [{field: {$regex: /^exp1/i}}, {field: {$ne: 'exp2'}}]});
   });

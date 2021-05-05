@@ -1,7 +1,7 @@
 const Ajv = require('ajv').default;
 const ajvFormats = require('ajv-formats').default;
 const ajvKeywords = require('ajv-keywords').default;
-const {errors, objectUtils} = require('../../utils');
+const utils = require('../../utils');
 const mc = require('merge-change');
 const instance = require('./keywords/instance');
 const Service = require("../service");
@@ -400,7 +400,7 @@ class Spec extends Service {
       });
     }
     console.log(JSON.stringify(issues, null, 2));
-    return new errors.Validation(issues);
+    return new utils.errors.Validation(issues);
   };
 }
 

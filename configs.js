@@ -51,7 +51,11 @@ module.exports = {
   logs: {
     unsetFields: [
       'password'
-    ]
+    ],
+    all: true,
+    process: true,
+    step: true,
+    error: false,
   },
 
   dump: {
@@ -122,7 +126,7 @@ module.exports = {
         actions: {
           'tests.create': true,
           'tests.update': false,
-          'tests.find.*': false,
+          'tests.find.*': true,
           'tests.find.one': {objects: [{_key: "super"}]},
           'tests.delete': false,
         }

@@ -1,4 +1,4 @@
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
 const Services = require('../../index');
 
@@ -25,9 +25,9 @@ describe('Storage.base', () => {
   });
 
   test('Test types', async () => {
-    // console.log(utils.type(new ObjectID()));
-    // console.log(utils.typeList(new ObjectID()));
-    // console.log(utils.instanceof(new ObjectID(), 'ObjectID'));
+    // console.log(mc.utils.type(new ObjectID()));
+    // console.log(mc.utils.typeList(new ObjectID()));
+    // console.log(mc.utils.instanceof(new ObjectID(), 'ObjectID'));
     const newObj = await s.objects.createOne({
       body: {
         name: 'Test',
@@ -54,8 +54,8 @@ describe('Storage.base', () => {
 
     //console.log(newObj);
     //
-    // //expect(utils.type(newObj.dateCreate)).toBe('Date')
-    // expect(utils.type(newObj._id)).toBe('ObjectID')
+    // //expect(mc.utils.type(newObj.dateCreate)).toBe('Date')
+    // expect(mc.utils.type(newObj._id)).toBe('ObjectID')
   });
 
   test('Create simple', async () => {
@@ -67,9 +67,9 @@ describe('Storage.base', () => {
       session: data.session,
     });
 
-    console.log(utils.plain(newObj));
+    // console.log(mc.utils.plain(newObj));
 
-    expect(utils.plain(newObj)).toMatchObject({
+    expect(mc.utils.plain(newObj)).toMatchObject({
       _type: 'test',
       name: 'Test',
       status: 'new',
@@ -78,8 +78,8 @@ describe('Storage.base', () => {
       }
     });
 
-    //expect(utils.type(newObj.dateCreate)).toBe('Date')
-    expect(utils.type(newObj._id)).toBe('ObjectID')
+    //expect(mc.utils.type(newObj.dateCreate)).toBe('Date')
+    expect(mc.utils.type(newObj._id)).toBe('ObjectID')
   });
 
   test('Update simple', async () => {
@@ -99,7 +99,7 @@ describe('Storage.base', () => {
       session: data.session,
     });
 
-    expect(utils.plain(newObj)).toMatchObject({
+    expect(mc.utils.plain(newObj)).toMatchObject({
       _type: 'test',
       name: 'Test',
       status: 'new',
@@ -108,8 +108,8 @@ describe('Storage.base', () => {
       }
     });
 
-    //expect(utils.type(newObj.dateCreate)).toBe('Date')
-    expect(utils.type(newObj._id)).toBe('ObjectID')
+    //expect(mc.utils.type(newObj.dateCreate)).toBe('Date')
+    expect(mc.utils.type(newObj._id)).toBe('ObjectID')
   });
 
 });

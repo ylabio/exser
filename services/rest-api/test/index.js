@@ -1,10 +1,10 @@
-const {errors, objectUtils, queryUtils, schemaUtils: schema} = require('../../../utils');
+const {query, schema} = require('../../../utils');
 
 module.exports = async (router, services) => {
 
   const spec = await services.getSpec();
   const tags = spec.setTags({name: 'Tests', description: 'Тестовая модель'});
-
+  const access = await services.getAccess();
   const storage = await services.getStorage();
   /** @type {Test} */
   const tests = storage.get('test');
@@ -24,11 +24,17 @@ module.exports = async (router, services) => {
     responses: {
       201: schema.bodyResult({schema: {$ref: '#/components/schemas/storage.test'}})
     }
-  }), async (req) => {
-    return await tests.createOne({
+  }), async (req, res) => {
+    res.status(201);
+    const result = await tests.createOne({
       body: req.body,
       session: req.session,
-      fields: queryUtils.parseFields(req.query.fields)
+      fields: query.parseFields(req.query.fields)
+    });
+    return query.loadByFields({
+      object: result,
+      fields: req.query.fields,
+      action: req.def.action/// @todo??
     });
   });
 
@@ -51,17 +57,26 @@ module.exports = async (router, services) => {
       200: schema.bodyResultList({schema: {$ref: '#/components/schemas/storage.test'}})
     }
   }), async (req) => {
-    const filter = queryUtils.makeFilter(req.query.search, {
+    // Фильтр для выборки
+    const filter = query.makeFilter(req.query.search, {
       query: {cond: 'like', fields: ['name', 'status']},
+      access: () => access.makeFilterQuery({action: req.def.action, session: req.session}),
     });
-    return tests.getList({
-      filter,
-      sort: queryUtils.formattingSort(req.query.sort),
-      limit: req.query.limit,
-      skip: req.query.skip,
-      session: req.session,
-      fields: queryUtils.parseFields(req.query.fields)
-    });
+    // Выборка с фильтром
+    const result = {
+      items: await tests.findMany({
+        filter,
+        sort: query.parseSort(req.query.sort),
+        limit: req.query.limit,
+        skip: req.query.skip,
+        session: req.session,
+      }),
+      count: query.inFields(req.query.fields, 'items.count')
+        ? await tests.getCount({filter, session: req.session})
+        : undefined
+    };
+    // Результат с учётом запрашиваемых полей
+    return result;
   });
 
   /**
@@ -81,12 +96,16 @@ module.exports = async (router, services) => {
       404: schema.bodyError({description: 'Not Found'})
     }
   }), async (req/*, res*/) => {
-    return await tests.getOne({
-      filter: queryUtils.makeFilter({_id: req.params.id}, {
+    const result = await tests.findOne({
+      filter: query.makeFilter({_id: req.params.id}, {
         _id: {cond: 'eq', type: 'ObjectId'}
       }),
       session: req.session,
-      fields: queryUtils.parseFields(req.query.fields)
+    });
+    return query.loadByFields({
+      object: result,
+      fields: req.query.fields,
+      action: req.def.action/// @todo??
     });
   });
 
@@ -108,11 +127,15 @@ module.exports = async (router, services) => {
       404: schema.bodyError({description: 'Not Found'})
     }
   }), async (req) => {
-    return await tests.updateOne({
+    const result = await tests.updateOne({
       id: req.params.id,
       body: req.body,
       session: req.session,
-      fields: queryUtils.parseFields(req.query.fields)
+    });
+    return query.loadByFields({
+      object: result,
+      fields: req.query.fields,
+      action: req.def.action/// @todo??
     });
   });
 
@@ -166,8 +189,8 @@ module.exports = async (router, services) => {
   //   const result = await tests.deleteOne({
   //     id: req.params.id,
   //     session: req.session,
-  //     //fields: queryUtils.parseFields(req.query.fields)
+  //     //fields: query.parseFields(req.query.fields)
   //   });
-  //   return await tests.view({object: result, session, fields: queryUtils.parseFields(req.query.fields)})
+  //   return await tests.view({object: result, session, fields: query.parseFields(req.query.fields)})
   // });
 };

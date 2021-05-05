@@ -1,5 +1,5 @@
 const Services = require('./services');
-const {parseCommands} = require('./utils/array-utils');
+const {parseCommands} = require('./utils/arrays');
 
 (async () => {
   // Configure service manager

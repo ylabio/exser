@@ -1,8 +1,8 @@
 const date = require('./index');
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const Services = require('../../../services');
 
-describe('schema-utils.date', () => {
+describe('schema.date', () => {
   let s = {};
 
   beforeAll(async () => {
@@ -59,8 +59,8 @@ describe('schema-utils.date', () => {
         },
       },
     });
-    expect(utils.type(result.date)).toBe('Date');
-    expect(utils.type(result.dateList[1])).toBe('Date');
+    expect(mc.utils.type(result.date)).toBe('Date');
+    expect(mc.utils.type(result.dateList[1])).toBe('Date');
   });
 
   test('object date', async () => {
@@ -78,8 +78,8 @@ describe('schema-utils.date', () => {
         new Date('2020-01-07T13:25:00.008Z'),
         new Date('2020-01-07T13:25:00.008Z')],
     });
-    expect(utils.type(result.date)).toBe('Date');
-    expect(utils.type(result.dateList[1])).toBe('Date');
+    expect(mc.utils.type(result.date)).toBe('Date');
+    expect(mc.utils.type(result.dateList[1])).toBe('Date');
   });
 
   test('empty date', async () => {

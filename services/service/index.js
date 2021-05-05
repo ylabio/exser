@@ -1,4 +1,4 @@
-const {stringUtils} = require('../../utils');
+const utils = require('../../utils');
 
 /**
  * Абстрактный класс сервиса
@@ -13,7 +13,7 @@ class Service {
    * @returns {String}
    */
   name() {
-    if (!this._name) this._name = stringUtils.toDash(this.constructor.name);
+    if (!this._name) this._name = utils.strings.toDash(this.constructor.name);
     return this._name;
   }
 

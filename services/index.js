@@ -1,4 +1,4 @@
-const stringUtils = require('../utils/string-utils');
+const utils = require('../utils');
 const fs = require('fs');
 const path = require('path');
 const mc = require('merge-change');
@@ -93,7 +93,7 @@ class Services {
   }
 
   async get(name, params){
-    const method = `get${stringUtils.toUpperFirst(stringUtils.toCamelCase(name))}`;
+    const method = `get${utils.strings.toUpperFirst(utils.strings.toCamelCase(name))}`;
     if (this[method]){
       return this[method](params);
     } else {

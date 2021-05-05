@@ -30,9 +30,10 @@
 Главный файл приложения:
 
 *index.js*
+
 ```js
 const Services = require('./services'); // Менеджер сервисов
-const {parseCommands} = require('./utils/array-utils'); // Парсер парамтров CLI
+const {parseCommands} = require('./utils/arrays'); // Парсер парамтров CLI
 
 (async () => {
   // 1. Создаём менеджер сервисов

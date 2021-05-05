@@ -1,6 +1,6 @@
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
-const schemaUtils = require('../../../utils/schema-utils');
+const {schema} = require('../../../utils');
 const RelProperty = require('../properties/rel/index');
 const SessionState = require('../../sessions/session-state');
 const Services = require('../../index');
@@ -25,7 +25,7 @@ describe('Storage.rel', () => {
     s.spec.set('#/components/schemas/test.rel', {
       type: 'object',
       properties: {
-        user: schemaUtils.rel({
+        user: schema.rel({
           model: 'test',
           copy: '_id,_type,name'
         }),
@@ -43,11 +43,11 @@ describe('Storage.rel', () => {
     const result = await s.spec.validate('#/components/schemas/test.rel', {
       user: {_id: '6059c9379ccd9835d0431a19'},
     }); // Валидация без сессии, код языка должен установиться по умолчанию
-    expect(utils.plain(result)).toStrictEqual({
+    expect(mc.utils.plain(result)).toStrictEqual({
       user: {_id: '6059c9379ccd9835d0431a19'},
     });
-    expect(utils.type(result.user)).toBe('RelProperty');
-    expect(utils.type(result.user._id)).toBe('ObjectID');
+    expect(mc.utils.type(result.user)).toBe('RelProperty');
+    expect(mc.utils.type(result.user._id)).toBe('ObjectID');
     expect('_id' in result.user).toBe(true);
     expect('_key' in result.user).toBe(false);
 
@@ -56,10 +56,10 @@ describe('Storage.rel', () => {
     const result2 = await s.spec.validate('#/components/schemas/test.rel', {
       user: prop,
     }, context);
-    expect(utils.plain(result2)).toStrictEqual({
+    expect(mc.utils.plain(result2)).toStrictEqual({
       user: {_key: '1', _type: 'user'},
     });
-    expect(utils.type(result2.user)).toBe('RelProperty');
+    expect(mc.utils.type(result2.user)).toBe('RelProperty');
   });
 
   test('Load related object', async () => {
@@ -74,7 +74,7 @@ describe('Storage.rel', () => {
     });
     // Вытаскиваем свойства связанного объекта
     const rel = await result.user.load({session: data.session});
-    expect(utils.plain(rel)).toMatchObject({
+    expect(mc.utils.plain(rel)).toMatchObject({
       name: 'Related object',
     });
     expect(result.user.$rel.name).toBe('Related object');
@@ -103,7 +103,7 @@ describe('Storage.rel', () => {
     }
     const result = await s.objects.createOne({body, session: data.session});
 
-    expect(utils.plain(result)).toMatchObject({
+    expect(mc.utils.plain(result)).toMatchObject({
       name: 'Test object',
       relCopy: {
         _id: test._id.toString(),
@@ -119,7 +119,7 @@ describe('Storage.rel', () => {
       session: data.session
     });
 
-    expect(utils.plain(result2)).toMatchObject({
+    expect(mc.utils.plain(result2)).toMatchObject({
       name: 'Test object2',
       relCopy: {
         _id: test._id.toString(),

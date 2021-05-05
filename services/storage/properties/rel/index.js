@@ -1,6 +1,6 @@
 const Property = require('./../property');
 const mc = require('merge-change');
-const {queryUtils} = require('./../../../../utils');
+const {query} = require('./../../../../utils');
 
 class RelProperty extends Property {
 
@@ -127,11 +127,11 @@ class RelProperty extends Property {
 
     if (this.isDefine()) {
       if (this.options.copy) {
-        const copy = await queryUtils.loadByFields({object: this, fields: this.options.copy});
+        const copy = await query.loadByFields({object: this, fields: this.options.copy});
         this.value = mc.merge(this.value, copy);
       }
       if (this.options.search) {
-        const search = await queryUtils.loadByFields({object: this, fields: this.options.search});
+        const search = await query.loadByFields({object: this, fields: this.options.search});
         const searchFlat = mc.utils.flat(search, '', '.');
         const keys = Object.keys(searchFlat);
         const searchList = [];

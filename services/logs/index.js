@@ -12,50 +12,60 @@ class Logs extends Service {
     this.lastLog = {rn: true};
   }
 
+  /**
+   *
+   * @param text {String}
+   * @param data {*}
+   * @param session {SessionState}
+   * @param level {String} Тип ошибки
+   * @param rn {Boolean}
+   */
   log({text, data, session, level = '', rn = true}){
-    let line = [`${level}`];
-    let isNewGroup = true;
-    if (session){
-      if (this.lastLog.code === session.code){
-        line.push(`└─`);
-        isNewGroup = false;
+    if (this.config.all) {
+      let line = [`${level}`];
+      let isNewGroup = true;
+      if (session) {
+        if (this.lastLog.code === session.code) {
+          line.push(`└─`);
+          isNewGroup = false;
+        }
+        line.push(`${session.code}.${session.step}@${session.user ? session.user.username : 'guest'}`);
+        if (level === '#') {
+          session.incStep();
+        }
+        this.lastLog.code = session.code;
       }
-      line.push(`${session.code}.${session.step}@${session.user ? session.user.username : 'guest'}`);
-      if (level === '#'){
-        session.incStep();
+      line.push(text);
+      if (typeof data !== 'undefined') {
+        if (typeof data === 'object') {
+          data = mc.merge(data, {$unset: this.config.unsetFields});
+          line.push(JSON.stringify(data));
+        } else {
+          line.push(data);
+        }
       }
-      this.lastLog.code = session.code;
-    }
-    line.push(text);
-    if (typeof data !== 'undefined') {
-      if (typeof data === 'object'){
-        data = mc.merge(data, {$unset: this.config.unsetFields});
-        line.push(JSON.stringify(data));
+      // Если новая группа или тип сообщения, но в прошлом не было переноса строки
+      if (isNewGroup && level !== this.lastLog.level && this.lastLog.rn === false) {
+        process.stdout.write('\r\n');
       } else {
-        line.push(data);
+        // Если в прошлом логе переноса не было, то будет очищена строка
+        if (process.stdout.clearLine) {
+          process.stdout.clearLine();
+        } else {
+          process.stdout.write('\r');
+        }
+        if (process.stdout.cursorTo) {
+          process.stdout.cursorTo(0);
+        }
       }
-    }
-    // Если новая группа или тип сообщения, но в прошлом не было переноса строки
-    if (isNewGroup && level!== this.lastLog.level && this.lastLog.rn === false ){
-      process.stdout.write('\r\n');
-    } else {
-      // Если в прошлом логе переноса не было, то будет очищена строка
-      if (process.stdout.clearLine) {
-        process.stdout.clearLine();
-      } else {
-        process.stdout.write('\r');
+      process.stdout.write(line.join(' '));
+      if (rn) {
+        process.stdout.write('\r\n');
       }
-      if (process.stdout.cursorTo) {
-        process.stdout.cursorTo(0);
-      }
+      this.lastLog.level = level;
+      this.lastLog.text = text;
+      this.lastLog.rn = rn;
     }
-    process.stdout.write(line.join(' '));
-    if (rn) {
-      process.stdout.write('\r\n');
-    }
-    this.lastLog.level = level;
-    this.lastLog.text = text;
-    this.lastLog.rn = rn;
   }
 
   /**
@@ -63,9 +73,12 @@ class Logs extends Service {
    * @param name
    * @param data
    * @param session
+   * @param rn {Boolean}
    */
   step({text, data, session, rn = true}) {
-    this.log({text, data, session, level: '#', rn});
+    if (this.config.step) {
+      this.log({text, data, session, level: '#', rn});
+    }
   }
 
   /**
@@ -73,20 +86,23 @@ class Logs extends Service {
    * @param name
    * @param error
    * @param session
+   * @param rn {Boolean}
    */
-  error({text, data, error, session, rn}) {
-    if (!text && error){
-      text = error.message;
-    }
-    if (error) {
-      let stack = error.stack.split(/\s*\n\s*/);
-      stack.shift();
-      if (stack.length) {
-        text += ' ' + stack[0];
+  error({text, data, error, session, rn = true}) {
+    if (this.config.error) {
+      if (!text && error) {
+        text = error.message;
       }
-      this.log({text, data: error.data || data, session, level: '!', rn});
-    } else {
-      this.log({text, data, session, level: '!', rn});
+      if (error) {
+        let stack = error.stack.split(/\s*\n\s*/);
+        stack.shift();
+        if (stack.length) {
+          text += ' ' + stack[0];
+        }
+        this.log({text, data: error.data || data, session, level: '!', rn});
+      } else {
+        this.log({text, data, session, level: '!', rn});
+      }
     }
   }
 
@@ -101,11 +117,13 @@ class Logs extends Service {
    * @param stop
    */
   progress({text, data, session, current, total, stop = false}) {
-    if (total){
-      let percent = (current / total * 100).toFixed(1);
-      text = (text ? text + ' ' : '') + `${current}/${total} [${percent}%]`;
+    if (this.config.process) {
+      if (total) {
+        let percent = (current / total * 100).toFixed(1);
+        text = (text ? text + ' ' : '') + `${current}/${total} [${percent}%]`;
+      }
+      this.log({text, data, session, level: '%', rn: current >= total || stop});
     }
-    this.log({text, data, session, level: '%', rn: current >= total || stop});
   }
 }
 

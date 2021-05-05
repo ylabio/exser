@@ -1,4 +1,4 @@
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
 const Services = require('../../index');
 
@@ -48,13 +48,13 @@ describe('Storage.base', () => {
       }
     }
     const a = new B();
-    console.log(a);
-    console.log(JSON.stringify(a));
-    console.log(a);
-    console.log(a + 0);
-    console.log(a.valueOf().calculate());
+    // console.log(a);
+    // console.log(JSON.stringify(a));
+    // console.log(a);
+    // console.log(a + 0);
+    // console.log(a.valueOf().calculate());
     const myId = new ObjectID();
-    console.log(myId, myId.valueOf(), JSON.stringify(myId));
+    // console.log(myId, myId.valueOf(), JSON.stringify(myId));
 
     await s.objects.native.insertOne({
       property: a.valueOf(),
@@ -80,7 +80,7 @@ describe('Storage.base', () => {
     const y = 12;//new Number(10);
 
     // console.log(JSON.stringify({x,y}));
-    // console.log({x: utils.typeList(x), y: utils.typeList(y)});
+    // console.log({x: mc.utils.typeList(x), y: mc.utils.typeList(y)});
     // expect(x === y).toBe(false);
     // expect(x === 10).toBe(false);
     // expect(x*1 === 10).toBe(true);
@@ -102,6 +102,6 @@ describe('Storage.base', () => {
         return 'b'
       }
     }
-    console.log(JSON.stringify(X));
+    // console.log(JSON.stringify(X));
   });
 });

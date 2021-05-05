@@ -5,7 +5,8 @@ const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const errors = require('../../utils').errors;
 const xmlparser = require('express-xml-bodyparser');
-const Service = require("../service");
+const Service = require('../service');
+const utils = require('../../utils');
 
 class RestAPI extends Service {
 
@@ -14,6 +15,7 @@ class RestAPI extends Service {
     this.config.url = `${this.config.protocol}${this.config.host}${this.config.port ? ':' + this.config.port : ''}`;
     this.spec = await this.services.getSpec();
     this.access = await this.services.getAccess();
+    this.logs = await this.services.getLogs();
     this.app = null;
     return this;
   }
@@ -183,6 +185,7 @@ class RestAPI extends Service {
   responseHandler(callback, def, atRequest, atResponse) {
     return async (req, res, next) => {
       req.def = def;
+      req.action = def.action;
       if (atRequest) {
         await atRequest(req, res, next);
       }
@@ -205,6 +208,7 @@ class RestAPI extends Service {
             // Нет настройки доступа для действия
             next(new errors.Forbidden());
           }
+          return;
         }
       }
 
@@ -234,6 +238,13 @@ class RestAPI extends Service {
           if (atResponse) {
             atResponse(result, req, res, next);
           }
+
+          result.result = await utils.query.loadByFields({
+            object: result.result,
+            fields: req.query.fields || '*',
+            action: req.action
+          });
+
           res.json(result);
         }
       } catch (e) {
@@ -248,13 +259,9 @@ class RestAPI extends Service {
    */
   errorHandler({atError}) {
     return async (err, req, res, next) => { // eslint-disable-line no-unused-vars
-      if (this.config.log) {
-        console.log(err instanceof errors.Validation ? JSON.stringify(err) : err);
-      }
+      this.logs.error({error: err, session: req.session})
       let result = {error: this.errorTrnasform(err)};
-
-      res.status(parseInt(result.error.id || 500)).json(result);
-
+      res.status(parseInt(result.error.status || 500)).json(result);
       if (atError) {
         atError(result, err, req, res, next);
       }

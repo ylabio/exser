@@ -1,6 +1,6 @@
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const ObjectID = require('mongodb').ObjectID;
-const schemaUtils = require('../../../utils/schema-utils');
+const {schema} = require('../../../utils');
 const I18nProperty = require('../properties/i18n/index');
 const Services = require('../../index');
 
@@ -31,7 +31,7 @@ describe('Storage.i18n', () => {
     s.spec.set('#/components/schemas/test.i18n', {
       type: 'object',
       properties: {
-        name: schemaUtils.stringi18n({
+        name: schema.stringi18n({
           maxLength: 10,
           default: '0',
           defaultLang: 'de'
@@ -42,19 +42,19 @@ describe('Storage.i18n', () => {
     const result = await s.spec.validate('#/components/schemas/test.i18n', {
       name: 'Name',
     }); // Валидация без сессии, код языка должен установиться по умолчанию
-    expect(utils.plain(result)).toStrictEqual({
+    expect(mc.utils.plain(result)).toStrictEqual({
       name: {
         de: 'Name'
       },
     });
-    expect(utils.type(result.name)).toBe('I18nProperty');
+    expect(mc.utils.type(result.name)).toBe('I18nProperty');
 
     // Instance of I18nProperty
     const prop = new I18nProperty({value: 'Some value', session: data.session});
     const result2 = await s.spec.validate('#/components/schemas/test.i18n', {
       name: prop,
     }, context);
-    expect(utils.plain(result2)).toStrictEqual({
+    expect(mc.utils.plain(result2)).toStrictEqual({
       name: {
         ru: 'Some value'
       },
@@ -68,13 +68,13 @@ describe('Storage.i18n', () => {
         xxxx: {x: 'любая фигня должна отсекаться'}
       },
     }, context);
-    expect(utils.plain(result3)).toStrictEqual({
+    expect(mc.utils.plain(result3)).toStrictEqual({
       name: {
         ru: 'Русс',
         en: 'Англ',
       },
     });
-    expect(utils.type(result3.name)).toBe('I18nProperty');
+    expect(mc.utils.type(result3.name)).toBe('I18nProperty');
 
     // Get value
     expect(result3.name.valueOf()).toBe('Русс');
@@ -90,7 +90,7 @@ describe('Storage.i18n', () => {
       i18n3: null
     }
     const result = await s.objects.createOne({body, session: data.session});
-    expect(utils.plain(result)).toMatchObject({
+    expect(mc.utils.plain(result)).toMatchObject({
       name: 'Test',
       i18n1: {ru: 'String'},
       i18n2: {en: 'StringEN', de: 'StringDE'},
@@ -116,7 +116,7 @@ describe('Storage.i18n', () => {
 
     const result = await s.objects.updateOne({filer: {_id: object._id}, body: updateBody, session: data.session});
 
-    expect(utils.plain(result)).toMatchObject({
+    expect(mc.utils.plain(result)).toMatchObject({
       name: 'TestChange',
       i18n1: {ru: 'StringNew'},
       i18n2: {en: 'StringEN2', de: 'StringDE', ru: 'StringRU'}, // added value

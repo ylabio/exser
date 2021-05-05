@@ -1,6 +1,6 @@
 const mc = require('merge-change');
 const Service = require("../service");
-const {queryUtils, arrayUtils} = require('../../utils')
+const utils = require('../../utils')
 
 /**
  * Сервис контроля доступа
@@ -98,7 +98,7 @@ class Access extends Service {
       const cnt = Math.pow(2, names.length);
       for (let i = 0; i < cnt; i++) {
         // Перебираются шаблон от исходного xx.yy.zz к обобщенному *.*.* до первого найденного
-        let template = arrayUtils.fillByBinaryMask(names, '*', i).join('.');
+        let template = utils.arrays.fillByBinaryMask(names, '*', i).join('.');
         if (template in acl.actions) {
           if (acl.actions[template] && acl.actions[template].allow !== false) {
             result.push({...acl, match: template});
@@ -144,7 +144,7 @@ class Access extends Service {
       const cnt = Math.pow(2, names.length);
       for (let i = 0; i < cnt; i++) {
         // Перебираются шаблон от исходного xx.yy.zz к обобщенному *.*.*
-        let template = arrayUtils.fillByBinaryMask(names, '*', i).join('.');
+        let template = utils.arrays.fillByBinaryMask(names, '*', i).join('.');
         // Если действие по шаблону найдено, то только по нему определяется доступ
         if (template in access.actions) {
           details.template = template;
@@ -198,7 +198,7 @@ class Access extends Service {
       const cnt = Math.pow(2, names.length);
       for (let i = 0; i < cnt; i++) {
         // Перебираются шаблон от исходного xx.yy.zz к обобщенному *.*.*
-        let template = arrayUtils.fillByBinaryMask(names, '*', i).join('.');
+        let template = utils.arrays.fillByBinaryMask(names, '*', i).join('.');
         // Если действие по шаблону найдено, то только по нему определяется доступ
         if (template in access.actions) {
           const sub = access.actions[template];
@@ -245,7 +245,7 @@ class Access extends Service {
             if (value === void 0) {
               hasCond = false;
             } else {
-              cond[key] = queryUtils.type(value);
+              cond[key] = utils.query.type(value);
             }
           }
           if (hasCond) query.$or.push(cond);

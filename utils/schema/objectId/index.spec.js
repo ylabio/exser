@@ -1,9 +1,9 @@
 const objectId = require('./index');
-const {utils} = require('merge-change');
+const mc = require('merge-change');
 const ObjectId = require('mongodb').ObjectID;
 const Services = require('../../../services');
 
-describe('schema-utils.objectId', () => {
+describe('schema.objectId', () => {
   let s = {};
 
   beforeAll(async () => {
@@ -46,9 +46,9 @@ describe('schema-utils.objectId', () => {
       },
     };
     const result = await s.spec.validate('#/components/schemas/model.objectId', body);
-    expect(utils.type(result.id)).toBe('ObjectID');
-    expect(utils.type(result.idList[1])).toBe('ObjectID');
-    expect(utils.type(result.sub.inner.deeperList[0])).toBe('ObjectID');
+    expect(mc.utils.type(result.id)).toBe('ObjectID');
+    expect(mc.utils.type(result.idList[1])).toBe('ObjectID');
+    expect(mc.utils.type(result.sub.inner.deeperList[0])).toBe('ObjectID');
   });
 
   test('object objectId', async () => {
@@ -59,8 +59,8 @@ describe('schema-utils.objectId', () => {
         new ObjectId('54759eb3c090d83494e2d804')],
     };
     const result = await s.spec.validate('#/components/schemas/model.objectId', body);
-    expect(utils.type(result.id)).toBe('ObjectID');
-    expect(utils.type(result.idList[1])).toBe('ObjectID');
+    expect(mc.utils.type(result.id)).toBe('ObjectID');
+    expect(mc.utils.type(result.idList[1])).toBe('ObjectID');
   });
 
   test('empty objectId', async () => {
@@ -95,8 +95,8 @@ describe('schema-utils.objectId', () => {
     });
     const body = {};
     const result = await s.spec.validate('#/components/schemas/model.objectIdDefault', body);
-    expect(utils.type(result.id1)).toBe('Null');
-    expect(utils.type(result.id2)).toBe('ObjectID');
-    expect(utils.type(result.id3)).toBe('ObjectID');
+    expect(mc.utils.type(result.id1)).toBe('Null');
+    expect(mc.utils.type(result.id2)).toBe('ObjectID');
+    expect(mc.utils.type(result.id3)).toBe('ObjectID');
   });
 });

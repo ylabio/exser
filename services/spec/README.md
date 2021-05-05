@@ -66,14 +66,14 @@ this.spec.set(`#/paths/\\articles\\{id}/POST`, {
   tags: ['Tests'],
   requestBody: {
     content: {
-      'application/json': {schema: {$ref: '#/components/schemas/article'}}
+      'application/json': {schema: {$ref: '#/components/schemas/storage.article'}}
     }
   },
   parameters: [
     {$ref: '#/components/parameters/limit'},
   ],
   responses: {
-    200: schemaUtils.success('success', {$ref: '#/components/schemas/article'})
+    200: utils.schema.bodyResult({schema: {$ref: '#/components/schemas/storage.article'}})
   }
 });
 ```

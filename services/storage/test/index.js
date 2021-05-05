@@ -1,7 +1,6 @@
 const Model = require('../model/index.js');
-const {errors} = require('../../../utils');
+const {errors, schema} = require('../../../utils');
 const ObjectID = require('mongodb').ObjectID;
-const type = require('../../../utils/schema-utils');
 const mc = require('merge-change');
 
 /**
@@ -10,7 +9,7 @@ const mc = require('merge-change');
 class Test extends Model {
 
   define() {
-    return this.extend(super.define(), type.model({
+    return this.extend(super.define(), schema.model({
       title: 'Тестовая модель',
       collection: 'test',
       indexes: {
@@ -18,43 +17,43 @@ class Test extends Model {
       },
       // Полная схема объекта
       properties: {
-        name: type.string({maxLength: 100, example: '999'}),
-        _id1: type.objectId({description: 'Идентификатор ObjectId'}),
-        _id2: type.objectId({description: 'Идентификатор ObjectId'}),
-        _id3: type.objectId({description: 'Идентификатор ObjectId', empty: true}),
-        dateTime: type.date({defaults: new Date()}),
-        dateTime2: type.date({}),
-        dateTime3: type.date({empty: true}),
-        i18n1: type.stringi18n({}),
-        i18n2: type.stringi18n({}),
-        i18n3: type.stringi18n({}),
-        order1: type.order({}),
-        order2: type.order({}),
-        order3: type.order({}),
+        name: schema.string({maxLength: 100, example: '999'}),
+        _id1: schema.objectId({description: 'Идентификатор ObjectId'}),
+        _id2: schema.objectId({description: 'Идентификатор ObjectId'}),
+        _id3: schema.objectId({description: 'Идентификатор ObjectId', empty: true}),
+        dateTime: schema.date({defaults: new Date()}),
+        dateTime2: schema.date({}),
+        dateTime3: schema.date({empty: true}),
+        i18n1: schema.stringi18n({}),
+        i18n2: schema.stringi18n({}),
+        i18n3: schema.stringi18n({}),
+        order1: schema.order({}),
+        order2: schema.order({}),
+        order3: schema.order({}),
 
-        relCopy: type.rel({
+        relCopy: schema.rel({
           description: 'Тест связи',
           model: 'test',
           copy: '_id, _type, name, i18n1',
           search: 'name, i18n1'
         }),
 
-        // index: type.order({description: 'Порядковый номер'}),
-        // owner: type.sessionUser({create: true, update: false, delete: false}),
-        status: type.string({enums: ['new', 'confirm'], defaults: 'new'}),
-        children: type.array({
+        // index: schema.order({description: 'Порядковый номер'}),
+        // owner: schema.sessionUser({create: true, update: false, delete: false}),
+        status: schema.string({enums: ['new', 'confirm'], defaults: 'new'}),
+        children: schema.array({
           description: 'Подчиненные объекты',
-          items: type.rel({
+          items: schema.rel({
             model: 'test',
             inverse: 'parent',
             copy: '_id, _type, name',
             properties: {
-              linkTitle: type.stringi18n({description: 'Название отношения'}),
-              test: type.string({order: true}),
+              linkTitle: schema.stringi18n({description: 'Название отношения'}),
+              test: schema.string({order: true}),
             },
           }),
         }),
-        parent: type.rel({
+        parent: schema.rel({
           description: 'Родительский клуб',
           model: 'test',
           inverse: 'children',
@@ -62,7 +61,7 @@ class Test extends Model {
           tree: 'custom',
           defaults: {},
         }),
-        title: type.stringi18n({
+        title: schema.stringi18n({
           description: 'Заголовок',
           defaults: 'Пусто',
           maxLength: 250,
