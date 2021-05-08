@@ -1,5 +1,5 @@
 const ObjectID = require('mongodb').ObjectID;
-const {strings, schema} = require('../../../utils');
+const {errors, strings, schema} = require('../../../utils');
 const deepEqual = require('deep-equal');
 const mc = require('merge-change');
 const Service = require('./../../service');
@@ -456,9 +456,6 @@ class Model extends Service {
    * @returns {*}
    */
   restoreInstances(value, session, path = '') {
-    if (this.propertiesWithInstance[path]) {
-      return this.spec.exeKeywordInstance(value, this.propertiesWithInstance[path], session, this.services);
-    }
     const type = mc.utils.type(value);
     if (type === 'Object') {
       for (const [key, item] of Object.entries(value)) {
@@ -470,6 +467,9 @@ class Model extends Service {
       for (let i = value.length - 1; i--; i >= 0) {
         value[i] = this.restoreInstances(value[i], session, pathKey);
       }
+    }
+    if (this.propertiesWithInstance[path]) {
+      return this.spec.exeKeywordInstance(value, this.propertiesWithInstance[path], session, this.services);
     }
     return value;
   }

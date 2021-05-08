@@ -11,7 +11,7 @@ const string = require('./../string');
  * @param [examples] {Array.<number>} Примеры значений
  * @param [errors] {Object.<string>} Тексты ошибок на ключевые слова. Например {type: "Неверный тип", maxLength: "Слишком длинная строка"}
  * @param [defaults] {string} Значение по умолчанию. Алиас для default.
- * @param defaultLang {string} Код языка по умолчанию из @exser/services/storage/properties/i18n/languages.js
+ * @param [defaultLang] {string} Код языка по умолчанию из @exser/services/storage/properties/i18n/languages.js
  * @param [other] {...*} Другие параметры поддерживаемые JSONSchema для описания строки
  * @returns {object}
  * @returns {Object}

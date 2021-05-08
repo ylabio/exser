@@ -15,14 +15,14 @@ module.exports = function ({
                              name = 'lang',
                              where = 'query',
                              description = 'Язык для мультиязычных свойств. ' +
-                             //'Если указать "all", то вернутся все варианты. ' +
+                             //'Если указать "*", то вернутся все варианты. ' +
                              'По-умолчанию определяется заголовком AcceptLanguage или X-Lang.',
                              schema = {type: 'string'},
                              example = 'ru',
                              examples/* = {
                                ru: {summary: 'Русский', value: 'ru'},
                                en: {summary: 'Английский', value: 'en'},
-                               all: {summary: 'Все', value: 'all'}
+                               *: {summary: 'Все', value: '*'}
                              }*/,
                              required,
                              deprecated

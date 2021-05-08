@@ -35,7 +35,10 @@ class Test extends Model {
           description: 'Тест связи',
           model: 'test',
           copy: '_id, _type, name, i18n1',
-          search: 'name, i18n1'
+          search: 'name, i18n1',
+          properties: {
+            i18n1: schema.stringi18n({defaultLang: 'gb'})
+          }
         }),
 
         // index: schema.order({description: 'Порядковый номер'}),
@@ -63,7 +66,7 @@ class Test extends Model {
         }),
         title: schema.stringi18n({
           description: 'Заголовок',
-          defaults: 'Пусто',
+          defaults: '',
           maxLength: 250,
         }),
       },
@@ -71,9 +74,16 @@ class Test extends Model {
     }));
   }
 
-  // schemes() {
-  //   return this.spec.extend(super.schemes(), {});
-  // }
+  async init(config, services) {
+    const result = super.init(config, services);
+
+    const access = await this.services.getAccess();
+    access.addAcl(3, {}, {
+      'tests.*': true,
+      'tests.*.*': true,
+    });
+    return result;
+  }
 }
 
 module.exports = Test;

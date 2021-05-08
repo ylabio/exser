@@ -201,6 +201,18 @@ class Spec extends Service {
         }
         result[path] = schema[keyword];
       }
+      for (const variantKind of ['anyOf', 'oneOf', 'allOf']) {
+        if (schema[variantKind]) {
+          for (const variant of schema[variantKind]) {
+            this.findPropertiesWithKeyword({
+              keyword,
+              schema: variant,
+              result,
+              path
+            });
+          }
+        }
+      }
       if (schema.type === 'array' && schema.items) {
         if (schema.items.type === 'object' && schema.items.properties) {
           let propsNames = Object.keys(schema.items.properties);
@@ -221,7 +233,7 @@ class Spec extends Service {
             keyword,
             schema: schema.properties[propName],
             result,
-            path: `${path}${path ? '.' : ''}${propName}`
+            path: `${path}${path ? '/' : ''}${propName}`
           });
         }
       }

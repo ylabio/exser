@@ -398,6 +398,13 @@ describe('Load by fields', () => {
       return this.value;
     }
 
+    async toFields(fields){
+      if (fields === true){
+        return this.value;
+      }
+      return mc.merge(this.value, await this.load());
+    }
+
     async load() {
       return {
         _id: 100,
@@ -452,7 +459,8 @@ describe('Load by fields', () => {
   test('_id,none', async () => {
     let result = await queryUtils.loadByFields({object: data.object, fields: '_id,none'});
     expect(result).toStrictEqual({
-      _id: 1
+      _id: 1,
+      none: undefined
     })
   });
 
@@ -548,15 +556,15 @@ describe('Load by fields', () => {
             {
               text: 'text12', comments: [
                 {text: 'text1121', comments: []},
-                {text: 'text1122'},
-                {text: 'text1123'}
+                {text: 'text1122', comments: undefined},
+                {text: 'text1123', comments: undefined}
               ]
             },
             {text: 'text13', comments: []}
           ]
         },
-        {text: 'text2'},
-        {text: 'text3'}
+        {text: 'text2', comments: undefined},
+        {text: 'text3', comments: undefined}
       ]
     });
   });
@@ -575,13 +583,13 @@ describe('Load by fields', () => {
         {
           text: 'text1',
           comments: [
-            {text: 'text11', comments: []},
-            {text: 'text12', comments: []},
-            {text: 'text13', comments: []}
+            {text: 'text11', comments: undefined},
+            {text: 'text12', comments: undefined},
+            {text: 'text13', comments: undefined}
           ]
         },
-        {text: 'text2'},
-        {text: 'text3'}
+        {text: 'text2', comments: undefined},
+        {text: 'text3', comments: undefined}
       ]
     });
   });

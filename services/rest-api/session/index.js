@@ -9,7 +9,7 @@ module.exports = async (router, services, url) => {
   router.use('', async (req, res, next) => {
     req.session = sessions.create();
     // Локаль по параметрам запроса
-    req.session.lang = (req.query.lang || req.get('X-Lang') || req.get('Accept-Language') || 'ru').split('-')[0];
+    req.session.lang = req.query.lang || req.get('X-Lang') || req.get('Accept-Language') || 'ru';
     next();
   });
 };

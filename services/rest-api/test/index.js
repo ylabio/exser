@@ -57,6 +57,7 @@ module.exports = async (router, services) => {
       200: schema.bodyResultList({schema: {$ref: '#/components/schemas/storage.test'}})
     }
   }), async (req) => {
+    //req.stopLoadByFields = true;
     // Фильтр для выборки
     const filter = query.makeFilter(req.query.search, {
       query: {cond: 'like', fields: ['name', 'status']},
@@ -73,9 +74,8 @@ module.exports = async (router, services) => {
       }),
       count: query.inFields(req.query.fields, 'items.count')
         ? await tests.getCount({filter, session: req.session})
-        : undefined
+        : null
     };
-    // Результат с учётом запрашиваемых полей
     return result;
   });
 
@@ -96,16 +96,11 @@ module.exports = async (router, services) => {
       404: schema.bodyError({description: 'Not Found'})
     }
   }), async (req/*, res*/) => {
-    const result = await tests.findOne({
+    return await tests.findOne({
       filter: query.makeFilter({_id: req.params.id}, {
         _id: {cond: 'eq', type: 'ObjectId'}
       }),
-      session: req.session,
-    });
-    return query.loadByFields({
-      object: result,
-      fields: req.query.fields,
-      action: req.def.action/// @todo??
+      session: req.session
     });
   });
 
@@ -127,15 +122,10 @@ module.exports = async (router, services) => {
       404: schema.bodyError({description: 'Not Found'})
     }
   }), async (req) => {
-    const result = await tests.updateOne({
+    return await tests.updateOne({
       id: req.params.id,
       body: req.body,
       session: req.session,
-    });
-    return query.loadByFields({
-      object: result,
-      fields: req.query.fields,
-      action: req.def.action/// @todo??
     });
   });
 

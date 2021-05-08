@@ -3,9 +3,10 @@ const acceptLanguage = require('accept-language');
 const mc = require('merge-change');
 const Property = require('./../property');
 
-acceptLanguage.languages(Object.keys(languages));
+const acceptFull = acceptLanguage.create();
+acceptFull.languages(Object.keys(languages));
 
-class I18nProperty extends Property{
+class I18nProperty extends Property {
 
   constructor({value, session, services, options}) {
     super({
@@ -15,7 +16,7 @@ class I18nProperty extends Property{
       options: mc.patch({
         default: 'ru',
       }, options)
-    })
+    });
   }
 
   set(value) {
@@ -31,7 +32,7 @@ class I18nProperty extends Property{
       this.value = value;
     } else {
       // Установка языка по локали
-      const key = acceptLanguage.get(this.session.lang && this.session.lang!=='all' ? this.session.lang : this.options.default);
+      const key = acceptFull.get(this.session.lang && this.session.lang !== '*' ? this.session.lang : this.options.default);
       this.value = {[key]: value};
     }
   }
@@ -41,30 +42,41 @@ class I18nProperty extends Property{
    * @returns {*}
    */
   valueOf() {
-    if (this.session.lang === 'all'){
+    if (this.session.lang === '*') {
       return this.value;
     }
-    const key = acceptLanguage.get(this.session.lang ? this.session.lang : this.options.default);
-    return this.value[key]; // @todo Ели нет key, то вернуть иное доступное значение?
+    const accept = acceptLanguage.create();
+    const langList = Object.keys(this.value);
+    if (langList.length) {
+      accept.languages(Object.keys(this.value));
+      const key = accept.get(this.session.lang ? this.session.lang : this.options.default);
+      return this.value[key];
+    } else {
+      return ''
+    }
   }
 
-  isContain(value){
+  isContain(value) {
     const keys = Object.keys(this.value);
-    for (const key of keys){
-      if (this.value[key] === value){
+    for (const key of keys) {
+      if (this.value[key] === value) {
         return true;
       }
     }
     return false;
   }
 
-  mergeString(value ,kind){
-    const key = acceptLanguage.get(this.session.lang && this.session.lang !=='all' ? this.session.lang : this.options.default);
+  mergeString(value, kind) {
+    const key = acceptFull.get(this.session.lang && this.session.lang !== '*' ? this.session.lang : this.options.default);
     const second = {[key]: value};
-    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE){
-      return new I18nProperty({value: mc.merge(this.value, second), options: this.options, session: this.session});
+    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE) {
+      return new I18nProperty({
+        value: mc.merge(this.value, second),
+        options: this.options,
+        session: this.session
+      });
     }
-    if (kind === mc.KINDS.PATCH){
+    if (kind === mc.KINDS.PATCH) {
       this.set(
         mc.patch(this.value, second)
       )
@@ -72,11 +84,15 @@ class I18nProperty extends Property{
     return this;
   }
 
-  mergeObject(value, kind){
-    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE){
-      return new I18nProperty({value: mc.merge(this.value, value), options: this.options, session: this.session});
+  mergeObject(value, kind) {
+    if (kind === mc.KINDS.MERGE || kind === mc.KINDS.UPDATE) {
+      return new I18nProperty({
+        value: mc.merge(this.value, value),
+        options: this.options,
+        session: this.session
+      });
     }
-    if (kind === mc.KINDS.PATCH){
+    if (kind === mc.KINDS.PATCH) {
       this.set(
         mc.patch(this.value, value)
       )

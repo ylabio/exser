@@ -46,6 +46,14 @@ class Property {
     return this.value;
   }
 
+  async toFields(fields){
+    if (fields === true){
+      return this.valueOf();
+    } else {
+      return this.value;
+    }
+  }
+
   /**
    * Значение для конвертации в BSON при записи в mongodb
    * @returns {string}

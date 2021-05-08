@@ -238,13 +238,13 @@ class RestAPI extends Service {
           if (atResponse) {
             atResponse(result, req, res, next);
           }
-
-          result.result = await utils.query.loadByFields({
-            object: result.result,
-            fields: req.query.fields || '*',
-            action: req.action
-          });
-
+          if (!req.stopLoadByFields && !res.stopLoadByFields) {
+            result.result = await utils.query.loadByFields({
+              object: result.result,
+              fields: req.query.fields || '*',
+              action: req.action
+            });
+          }
           res.json(result);
         }
       } catch (e) {

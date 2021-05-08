@@ -177,13 +177,15 @@ const queryUtils = {
                          action
                        }) => {
     fields = queryUtils.parseFields(fields);
-    // Возврат всего значения в простом формате
-    if (fields === true) {
-      return object; // отдаём как есть
-    }
+
     if (fields === false) {
       return undefined;
     }
+
+    if (object === void 0) {
+      return defaultValue;
+    }
+
     // Ссылка на родительский шаблон
     let isRecursive = false;
     if (fields['^']) {
@@ -203,99 +205,195 @@ const queryUtils = {
       // Признак нужен, чтобы не менять текущий путь на свойство
       isRecursive = true;
     }
-    // Возможность подгрузить объект, если есть метод load()
-    const canLoad = (object && typeof object.load === 'function');
-    let objectLoad;
-    // Перебираем поля, чтобы добавить их или удалить
-    let $preset = {};
-    let $set = {};
-    let $unset = [];
-    if (object) {
-      const fieldNames = Object.keys(fields);
+
+    // Кастомная подгрузка полей если есть метод toFields у объекта
+    if (object && typeof object.toFields === 'function') {
+      object = await object.toFields(fields);
+    }
+
+    // Возврат всего значения в простом формате
+    if (fields === true) {
+      //return object; // отдаём как есть
+      fields = {'*': true};
+    }
+
+    const type = mc.utils.type(object);
+    // Простой объект
+    if (type === 'Object') {
+      //let $unset = [];
+      let result = {};
+      // Перебираем поля в fields
+      const fieldNames =  Object.keys(fields);
       for (const fieldName of fieldNames) {
-        let [type, name] = fieldName.split(':');
-        if (!name) {
-          name = type;
+        let [type, key] = fieldName.split(':');
+        if (!key) {
+          key = type;
           type = null;
         }
+        // Если поле не типизировано или тип совпадает
         if (!type || object[typeField] === type) {
-          if (fields[name] === false) {
+          if (fields[key] === false) {
             // Исключение свойства
-            $unset.push(name);
-          } else if (name === '*') {
-            // Предустанавливаем все возможные свойства
-            $set = mc.utils.plain(object);
-            if (canLoad) {
-              // Все свойства из подгруженного объекта
-              if (!objectLoad) objectLoad = await object.load({action});
-              $preset = mc.utils.plain(objectLoad);
+            //$unset.push(key);
+          } else if (key === '*') {
+            // Нужно перебрать все свойства, чтобы вызывать у них toFields если есть
+            const names = Object.keys(object);
+            for (const name of names) {
+              // Если нет отдельного указания поля в fields
+              if (!(name in fields)) {
+                result[name] = await queryUtils.loadByFields({
+                  object: object[name],
+                  fields: fields[key],
+                  defaultValue,
+                  parentFields: fields,
+                  depth,
+                  limit,
+                  currentPath: depth && currentPath in depth ? currentPath : (currentPath ? currentPath + '.' + name : name),
+                  action
+                });
+              }
             }
           } else {
-            // Если нет свойства в object
-            if (!(name in object)) {
-              // Подгружаем объект, чтобы от туда попробовать взять
-              if (canLoad) {
-                if (!objectLoad) objectLoad = await object.load({action});
-              }
-              // Если нет objectLoad или в objectLoad нет свойства, то установка defaultValue
-              if (!objectLoad || !(name in objectLoad)) {
-                if (defaultValue !== undefined) $set[name] = defaultValue;
-              } else {
-                // свойство обнаружилось
-                $set[name] = await queryUtils.loadByFields({
-                  object: objectLoad[name],
-                  fields: fields[fieldName],
-                  defaultValue,
-                  parentFields: fields,
-                  depth,
-                  limit,
-                  currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
-                  action
-                });
-              }
-            } else {
-              if (Array.isArray(object[name])) {
-                currentPath = isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name);
-                let limitCnt = (currentPath in limit && limit[currentPath]!=='*') ? limit[currentPath] : Infinity;
-                $set[name] = [];
-                for (let item of object[name]) {
-                  if (limitCnt < 1) break;
-                  const fieldValue = await queryUtils.loadByFields({
-                    object: item,
-                    fields: fields[fieldName],
-                    defaultValue,
-                    parentFields: fields,
-                    depth,
-                    limit,
-                    currentPath,
-                    action
-                  });
-                  if (fieldValue !== undefined) {
-                    $set[name].push(fieldValue);
-                    limitCnt--;
-                  }
-                }
-              } else {
-                const fieldValue = await queryUtils.loadByFields({
-                  object: object[name],
-                  fields: fields[fieldName],
-                  defaultValue,
-                  parentFields: fields,
-                  depth,
-                  limit,
-                  currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
-                  action
-                });
-                if (fieldValue !== undefined) {
-                  $set[name] = fieldValue;
-                }
-              }
-            }
+            result[key] = await queryUtils.loadByFields({
+              object: object[key],
+              fields: fields[key],
+              defaultValue,
+              parentFields: fields,
+              depth,
+              limit,
+              currentPath: depth && currentPath in depth ? currentPath : (currentPath ? currentPath + '.' + key : key),
+              action
+            });
           }
         }
       }
+      return result; //mc.patch(result, {$unset});
     }
-    return mc.update($preset, {$set, $unset});
+    // Простой массив
+    if (type === 'Array') {
+      let limitCnt = (currentPath in limit && limit[currentPath] !== '*') ? limit[currentPath] : Infinity;
+      let result = [];
+      for (const item of object) {
+        if (limitCnt < 1) break;
+        const fieldValue = await queryUtils.loadByFields({
+          object: item,
+          fields: fields,
+          defaultValue,
+          parentFields: fields,
+          depth,
+          limit,
+          currentPath,//: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+          action
+        });
+        if (fieldValue !== undefined) {
+          result.push(fieldValue);
+          limitCnt--;
+        }
+      }
+      return result;
+    }
+    // Возвращаем как есть без обработки fields
+    return object;
+
+
+    // // Возможность подгрузить свойства объекта, если есть метод toFields()
+    // //const canLoad = (object && typeof object.toFields === 'function');
+    // //let objectLoad;
+    // // Перебираем поля, чтобы добавить их или удалить
+    // let $preset = {};
+    // //let $set = {};
+    // let $unset = [];
+    //
+    // if (object) {
+    //   const fieldNames = Object.keys(fields);
+    //   for (const fieldName of fieldNames) {
+    //     let [type, name] = fieldName.split(':');
+    //     if (!name) {
+    //       name = type;
+    //       type = null;
+    //     }
+    //     if (!type || object[typeField] === type) {
+    //       if (fields[name] === false) {
+    //         // Исключение свойства
+    //         $unset.push(name);
+    //       } else if (name === '*') {
+    //         // Предустанавливаем все возможные свойства
+    //         // @todo Берем все свойства объекта
+    //         // @todo Но по всем свойствам нужно пройтись и взывать у них valueOf если есть
+    //         // @todo При этом toFields не должен доп. данные подгружать, это только для
+    //
+    //         $set = mc.utils.plain(object, true);
+    //         if (canLoad) {
+    //           // Все свойства из подгруженного объекта
+    //           if (!objectLoad) objectLoad = await object.toFields({action});
+    //           $preset = mc.utils.plain(objectLoad);
+    //         }
+    //       } else {
+    //         // Если нет свойства в object
+    //         if (!(name in object)) {
+    //           // Подгружаем объект, чтобы от туда попробовать взять
+    //           if (canLoad) {
+    //             if (!objectLoad) objectLoad = await object.toFields({action});
+    //           }
+    //           // Если нет objectLoad или в objectLoad нет свойства, то установка defaultValue
+    //           if (!objectLoad || !(name in objectLoad)) {
+    //             if (defaultValue !== undefined) $set[name] = defaultValue;
+    //           } else {
+    //             // свойство обнаружилось
+    //             $set[name] = await queryUtils.loadByFields({
+    //               object: objectLoad[name],
+    //               fields: fields[fieldName],
+    //               defaultValue,
+    //               parentFields: fields,
+    //               depth,
+    //               limit,
+    //               currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+    //               action
+    //             });
+    //           }
+    //         } else {
+    //           if (Array.isArray(object[name])) {
+    //             currentPath = isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name);
+    //             let limitCnt = (currentPath in limit && limit[currentPath]!=='*') ? limit[currentPath] : Infinity;
+    //             $set[name] = [];
+    //             for (let item of object[name]) {
+    //               if (limitCnt < 1) break;
+    //               const fieldValue = await queryUtils.loadByFields({
+    //                 object: item,
+    //                 fields: fields[fieldName],
+    //                 defaultValue,
+    //                 parentFields: fields,
+    //                 depth,
+    //                 limit,
+    //                 currentPath,
+    //                 action
+    //               });
+    //               if (fieldValue !== undefined) {
+    //                 $set[name].push(fieldValue);
+    //                 limitCnt--;
+    //               }
+    //             }
+    //           } else {
+    //             const fieldValue = await queryUtils.loadByFields({
+    //               object: object[name],
+    //               fields: fields[fieldName],
+    //               defaultValue,
+    //               parentFields: fields,
+    //               depth,
+    //               limit,
+    //               currentPath: isRecursive ? currentPath : (currentPath ? currentPath + '.' + name : name),
+    //               action
+    //             });
+    //             if (fieldValue !== undefined) {
+    //               $set[name] = fieldValue;
+    //             }
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    // }
+    // return mc.update($preset, {$set, $unset});
   },
 
   /**
@@ -304,7 +402,7 @@ const queryUtils = {
    * @returns Object
    */
   parseSort: (sortField) => {
-    if (typeof sortField === 'object'){
+    if (typeof sortField === 'object') {
       return sortField;
     }
     if (typeof sortField === 'string') {
@@ -363,7 +461,7 @@ const queryUtils = {
         if (typeof filterMap[key] === 'function') {
           const query = filterMap[key](value, key, searchFields);
           if (query !== null && typeof query === 'object') {
-            if (query === false){
+            if (query === false) {
               result.push({_id: 0});
             } else {
               result.push(query);

@@ -43,10 +43,6 @@ class RelProperty extends Property {
     this.defineProps();
   }
 
-  // toJSON() {
-  //   return mc.merge(this.$rel, this.value);
-  // }
-
   /**
    * Установка свойств на основе ключей this.value для удобства обращения к ним
    */
@@ -119,6 +115,14 @@ class RelProperty extends Property {
     return this.$rel;
   }
 
+  async toFields(fields){
+    if (fields === true){
+      return this.valueOf();
+    } else {
+      return this.value;
+    }
+  }
+
   isDefine() {
     return Object.keys(this.value).length > 0;
   }
@@ -127,11 +131,11 @@ class RelProperty extends Property {
 
     if (this.isDefine()) {
       if (this.options.copy) {
-        const copy = await query.loadByFields({object: this, fields: this.options.copy});
+        const copy = await query.loadByFields({object: await this.load(), fields: this.options.copy});
         this.value = mc.merge(this.value, copy);
       }
       if (this.options.search) {
-        const search = await query.loadByFields({object: this, fields: this.options.search});
+        const search = await query.loadByFields({object: await this.load(), fields: this.options.search});
         const searchFlat = mc.utils.flat(search, '', '.');
         const keys = Object.keys(searchFlat);
         const searchList = [];
