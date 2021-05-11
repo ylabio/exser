@@ -3,6 +3,7 @@ const ObjectID = require('mongodb').ObjectID;
 const {errors, objectUtils, queryUtils} = require('../../utils');
 const acceptLanguage = require('accept-language');
 const languagesCodes = Object.keys(require('./languages'));
+const mc = require('merge-change');
 
 class Spec {
 
@@ -341,7 +342,7 @@ class Spec {
     return result;
   }
 
-  getSchemaOpenApi() {
+  getSchemaOpenApi({host}) {
     const filter = (obj, parent = '') => {
       let result;
       if (Array.isArray(obj)) {
@@ -384,7 +385,16 @@ class Spec {
       }
       return result;
     };
-    return filter(this.getSchema());
+    const result = mc.merge(this.getSchema(), {});
+    if (host && result.servers){
+      result.servers = result.servers.map(item => {
+        if (!item.url.match(/^https?::/)){
+          item.url = host + item.url;
+        }
+        return item;
+      })
+    }
+    return filter(result);
   }
 
   makeRef(parts = []) {

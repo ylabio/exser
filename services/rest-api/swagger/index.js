@@ -1,29 +1,26 @@
-const swaggerUi = require('swagger-ui-express-fresh');
+const express = require('express');
+const pathToSwaggerUi = require('swagger-ui-dist').absolutePath()
 
-module.exports = async (router, services) => {
+module.exports = async (router, services, baseUrl) => {
 
   let spec = await services.getSpec();
 
-  router.origin.get('/docs/source.json', async (req, res) => {
-    res.json(Object.assign({}, spec.getSchemaOpenApi(), {
-      // host: req.headers.host,
-      // schemes: ['https']
-    }));
+  // swagger.html
+  router.origin.get(/docs$/, (req, res) => {
+    res.redirect(baseUrl + '/docs/');
+  });
+  router.origin.get('/docs/index.html', (req, res) => {
+    res.redirect(baseUrl + '/docs/');
+  });
+  router.origin.get(/docs\/$/, (req, res) => {
+    res.sendFile(__dirname + '/swagger.html');
   });
 
-  const css = `
-  .swagger-ui .topbar{
-    display: none;
-  }
-  .swagger-ui .info{
-    margin: 15px 0;
-  }
-  .swagger-ui .scheme-container {
-    padding: 15px 0 25px;
-  }
-  `;
-
-  router.use('/docs', swaggerUi.serve, (req, res) => {
-    swaggerUi.setup(spec.getSchemaOpenApi(), false, {}, css)(req, res);
+  // Спецификация для swagger ui
+  router.origin.get('/docs/source.json', (req, res) => {
+    res.json(spec.getSchemaOpenApi({host: `//${req.headers.host}`}));
   });
+
+  // Скрипты, картинки, стили swagger ui
+  router.use('/docs', express.static(pathToSwaggerUi));
 };

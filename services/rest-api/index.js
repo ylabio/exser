@@ -48,6 +48,7 @@ class RestAPI {
     this.app.use(bodyParser.urlencoded({extended: true}));
     this.app.use(express.static('public'));
     this.app.use(this.config.baseUrl, await this.getRouter({
+      pathUrl: this.config.baseUrl,
       atRequest: params.atRequest,
       atResponse: params.atResponse,
     }));
@@ -103,7 +104,7 @@ class RestAPI {
    * Роутер express
    * @returns {Promise.<*>}
    */
-  async getRouter({atRequest, atResponse}) {
+  async getRouter({pathUrl, atRequest, atResponse}) {
     // Переопределение методов роутера для документирования и обработки ответа
     const router = expressRouter();
     const methods = ['get', 'post', 'put', 'delete', 'options', 'patch', 'head'];
@@ -139,7 +140,7 @@ class RestAPI {
     const routersKeys = Object.keys(this.config.routers);
     for (const key of routersKeys) {
       await
-        this.config.routers[key](router, this.services);
+        this.config.routers[key](router, this.services, this.config.baseUrl);
     }
 
     return router;

@@ -95,8 +95,8 @@ module.exports = {
       openapi: '3.0.0',
       info: {
         title: 'Exser',
-        description: 'Exser REST API',
-        termsOfService: '',//url
+        //description: 'Exser REST API',
+        //termsOfService: '',//url
         // contact: {
         // name: 'API Support',
         // url: 'http://www.example.com/support',
@@ -147,10 +147,10 @@ module.exports = {
       tags: [
         {name: 'Authorize', description: 'Авторизация'},
       ],
-      externalDocs: {
-        description: 'source.json',
-        url: '/api/v1/docs/source.json'
-      },
+      // externalDocs: {
+      //   description: 'source.json',
+      //   url: '/api/v1/docs/source.json'
+      // },
     }
   },
 

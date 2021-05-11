@@ -1,6 +1,6 @@
 {
   "name": "exser",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "API Server for real projects",
   "main": "exser.js",
   "scripts": {
@@ -47,13 +47,12 @@
     "lodash.camelcase": "^4.3.0",
     "lodash.isequal": "^4.5.0",
     "lodash.upperfirst": "^4.3.1",
-    "merge-change": "^1.6.1",
-    "moment": "^2.27.0",
+    "merge-change": "^1.6.11",
+    "moment": "^2.29.1",
     "mongodb": "^3.5.9",
     "morgan": "^1.10.0",
     "supertest": "^4.0.2",
-    "swagger-ui-express": "^4.1.4",
-    "swagger-ui-express-fresh": "^4.1.7",
+    "swagger-ui-dist": "^3.48.0",
     "transliteration": "^2.1.11"
   },
   "devDependencies": {
