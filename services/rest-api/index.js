@@ -194,19 +194,12 @@ class RestAPI extends Service {
         const details = {};
         const isAllow = this.access.isAllow({action: def.action, session: req.session, details});
         if (!isAllow){
-          if (details.list.length === 0){
-            // Не найдена запись для сессии, считаем что сессия не авторизована
-            next(new errors.Unauthorized());
-          } else
-          if (details.template){
-            // Явно указан запрет
-            next(new errors.Forbidden({
-              key: details.list[details.index].key,
-              template: details.template
-            }));
+          if (details.key === null){
+            // Не найдены acl для сессии, считаем что сессия не авторизована
+            next(new errors.Unauthorized(details));
           } else {
-            // Нет настройки доступа для действия
-            next(new errors.Forbidden());
+            // Запрет на действие или отсутствие настроек доступа
+            next(new errors.Forbidden(details));
           }
           return;
         }

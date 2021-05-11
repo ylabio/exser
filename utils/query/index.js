@@ -182,6 +182,10 @@ const queryUtils = {
       return undefined;
     }
 
+    if (typeof fields === 'object' && Object.keys(fields).length === 0){
+      fields = true;
+    }
+
     if (object === void 0) {
       return defaultValue;
     }
@@ -708,6 +712,29 @@ const queryUtils = {
       }
     }
   },
+
+  /**
+   * Слияние условий
+   * @param source {Object|*}
+   * @param append {Object|*}
+   * @param cond {String} Условие слияния $and или $or
+   * @returns {*}
+   */
+  joinFilter(source, append, cond = '$and'){
+    if (typeof source !== 'object' || Object.keys(source).length === 0){
+      return append;
+    }
+    if (typeof append !== 'object' || Object.keys(append).length === 0){
+      return source;
+    }
+    let result = mc.merge(source[cond] ? source : {[cond] : [source]}, {});
+    if (append[cond]){
+      result[cond] = result[cond].concat(append[cond])
+    } else {
+      result[cond].push(append);
+    }
+    return result;
+  }
 };
 
 module.exports = queryUtils;

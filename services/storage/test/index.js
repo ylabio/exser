@@ -73,17 +73,6 @@ class Test extends Model {
       required: ['name'],
     }));
   }
-
-  async init(config, services) {
-    const result = super.init(config, services);
-
-    const access = await this.services.getAccess();
-    access.addAcl(3, {}, {
-      'tests.*': true,
-      'tests.*.*': true,
-    });
-    return result;
-  }
 }
 
 module.exports = Test;

@@ -110,6 +110,23 @@ class Access extends Service {
     return result;
   }
 
+  /**
+   * Проверка запрета на действие
+   * При запрете возвращает объект с деталями запрета. Если запрета нет, но возвращается false
+   * @param action {String} Свойство доступа по которому сверяются права
+   * @param session {SessionState} Сессия
+   * @param object {Object} Объект, на который поверяется доступ
+   * @param [details] {Object} Если передать объект, то в него добавятся детали проверки доступа.
+   * @param [access] {Object} Внутренний параметр для рекурсии
+   * @returns {boolean|Object}
+   */
+  isDeny({action = 'user.create', session = {}, object = null, details = {}, access = undefined}) {
+    if (!this.isAllow({action, session, object, details, access})){
+      return details;
+    } else {
+      return false;
+    }
+  }
 
   /**
    * Проверка доступа на действие
@@ -123,10 +140,14 @@ class Access extends Service {
   isAllow({action = 'user.create', session = {}, object = null, details = {}, access = undefined}) {
     // Если не передан объект доступов, то ищем в настройках по сессии
     if (access === undefined) {
-      details.list = this.findAclItemsBySession(session);
-      for (let index = 0; index < details.list.length; index++){
-        const item = details.list[index];
-        details.index = index;
+      details.key = null;
+      details.action = action;
+      details.template = null;
+      details.objects = false;
+      const list = this.findAclItemsBySession(session);
+      for (let index = 0; index < list.length; index++){
+        const item = list[index];
+        details.key = item.key;
         if (this.isAllow({action, session, object, details, access: item || null})) {
           return true;
         }
@@ -154,6 +175,7 @@ class Access extends Service {
           }
           // Если передан объект в метод и есть параметры доступов по объектам
           if (object && sub.objects) {
+            details.objects = true;
             return !!sub.objects.find(item => mc.utils.match(object, item, {session}));
           }
           return true;

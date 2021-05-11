@@ -119,7 +119,7 @@ class RelProperty extends Property {
     if (fields === true){
       return this.valueOf();
     } else {
-      return this.value;
+      return mc.merge(this.value, await this.load());
     }
   }
 

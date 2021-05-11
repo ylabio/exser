@@ -14,7 +14,7 @@ module.exports = async (router, services) => {
    */
   router.post('/tests', schema.route({
     summary: 'Создание',
-    action: 'tests.create',
+    action: 'test.create',
     tags: tags,
     requestBody: schema.body({schema: {$ref: '#/components/schemas/storage.test'}}),
     parameters: [
@@ -43,7 +43,7 @@ module.exports = async (router, services) => {
    */
   router.get('/tests', schema.route({
     summary: 'Выбор списка (поиск)',
-    action: 'tests.find.many',
+    action: 'test.find.many',
     tags: tags,
     parameters: [
       schema.paramSearch({name: 'query', description: 'Общий поиск на совпадение строке'}),
@@ -57,14 +57,12 @@ module.exports = async (router, services) => {
       200: schema.bodyResultList({schema: {$ref: '#/components/schemas/storage.test'}})
     }
   }), async (req) => {
-    //req.stopLoadByFields = true;
     // Фильтр для выборки
     const filter = query.makeFilter(req.query.search, {
-      query: {cond: 'like', fields: ['name', 'status']},
-      access: () => access.makeFilterQuery({action: req.def.action, session: req.session}),
+      query: {cond: 'like', fields: ['name', 'status']}
     });
     // Выборка с фильтром
-    const result = {
+    return {
       items: await tests.findMany({
         filter,
         sort: query.parseSort(req.query.sort),
@@ -73,10 +71,9 @@ module.exports = async (router, services) => {
         session: req.session,
       }),
       count: query.inFields(req.query.fields, 'items.count')
-        ? await tests.getCount({filter, session: req.session})
+        ? await tests.findCount({filter, session: req.session})
         : null
     };
-    return result;
   });
 
   /**
@@ -84,7 +81,7 @@ module.exports = async (router, services) => {
    */
   router.get('/tests/:id', schema.route({
     summary: 'Выбор одного по идентификатору',
-    action: 'tests.find.one',
+    //action: 'test.find.one',
     tags: tags,
     parameters: [
       schema.param({name: 'id', in: 'path', description: 'Идентификатор объекта'}),
@@ -109,7 +106,7 @@ module.exports = async (router, services) => {
    */
   router.put('/tests/:id', schema.route({
     summary: 'Редактирование',
-    action: 'tests.update',
+    action: 'test.update',
     tags: tags,
     requestBody: schema.body({schema: {$ref: '#/components/schemas/storage.test'}}),
     parameters: [
@@ -134,7 +131,7 @@ module.exports = async (router, services) => {
    */
   router.post('/files', schema.route({
     summary: 'Загрузка и создание',
-    action: 'files.upload',
+    action: 'file.upload',
     description: 'Загрузка файла на сервер. Используется потоковая загрузка с прогрессом загрузки (HTML5)',
     tags: tags,
     requestBody: schema.body({
@@ -161,7 +158,7 @@ module.exports = async (router, services) => {
    * DELETE
    */
   // router.delete('/tests/:id', schema.route({
-  //   action: 'tests.delete',
+  //   action: 'test.delete',
   //   summary: 'Удаление',
   //   description: 'Удаление объекта',
   //   tags: ['Tests'],

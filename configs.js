@@ -124,11 +124,11 @@ module.exports = {
         key: 2,
         session: {},// Любая сессия
         actions: {
-          'tests.create': true,
-          'tests.update': false,
-          'tests.find.*': true,
-          'tests.find.one': {objects: [{_key: "super"}]},
-          'tests.delete': false,
+          'test.create': true,
+          'test.update': false,
+          //'test.find.*': false,
+          'test.find.*': {},
+          'test.delete': false,
         }
       },
       // {

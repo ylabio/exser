@@ -593,4 +593,43 @@ describe('Load by fields', () => {
       ]
     });
   });
-})
+});
+
+describe('joinFilter', () => {
+  const mc = require('merge-change');
+
+  test('join undefined', async () => {
+    let result = await queryUtils.joinFilter(undefined, {x: 0});
+    expect(result).toStrictEqual({x: 0})
+  });
+
+  test('join empty', async () => {
+    let result = await queryUtils.joinFilter({}, {x: 0});
+    expect(result).toStrictEqual({x: 0})
+  });
+
+  test('join simple', async () => {
+    let result = await queryUtils.joinFilter({y: 0}, {x: 0});
+    expect(result).toStrictEqual({$and: [{y: 0}, {x: 0}]})
+  });
+
+  test('join with false', async () => {
+    let result = await queryUtils.joinFilter({y: 0}, false);
+    expect(result).toStrictEqual({y: 0})
+  });
+
+  test('join $and', async () => {
+    let result = await queryUtils.joinFilter({$and: [{y: 0}]}, {x: 0});
+    expect(result).toStrictEqual({$and: [{y: 0}, {x: 0}]})
+  });
+
+  test('join $and with $and', async () => {
+    let result = await queryUtils.joinFilter({$and: [{y: 0}]}, {$and: [{x: 0}]});
+    expect(result).toStrictEqual({$and: [{y: 0}, {x: 0}]})
+  });
+
+  test('join $or with $and', async () => {
+    let result = await queryUtils.joinFilter({$or: [{y: 0}, {z: 1}]}, {$and: [{x: 0}]});
+    expect(result).toStrictEqual({$and: [{$or: [{y: 0}, {z: 1}]}, {x: 0}]})
+  });
+});
