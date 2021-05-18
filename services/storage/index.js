@@ -11,7 +11,18 @@ class Storage {
     this.config = config;
     this.services = services;
     this.spec = await this.services.getSpec();
-    this._client = await MongoDB.MongoClient.connect(this.config.db.url, {
+    let connectUrl = this.config.db.url;
+    if (typeof this.config.db.url === 'object'){
+      connectUrl = this.config.db.url.schema || 'mongodb://';
+      if (this.config.db.url.user){
+        connectUrl += `${encodeURIComponent(this.config.db.url.user)}:${encodeURIComponent(this.config.db.url.password)}@`
+      }
+      connectUrl += this.config.db.url.host || 'localhost';
+      if (this.config.db.url.port){
+        connectUrl += `:${this.config.db.url.port}`;
+      }
+    }
+    this._client = await MongoDB.MongoClient.connect(connectUrl, {
       useNewUrlParser: true,
       useUnifiedTopology: true
     });
