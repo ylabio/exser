@@ -81,7 +81,7 @@ module.exports = async (router, services) => {
    */
   router.get('/tests/:id', schema.route({
     summary: 'Выбор одного по идентификатору',
-    //action: 'test.find.one',
+    action: 'test.find.one',
     tags: tags,
     parameters: [
       schema.param({name: 'id', in: 'path', description: 'Идентификатор объекта'}),

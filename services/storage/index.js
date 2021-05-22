@@ -6,7 +6,7 @@ class Storage extends Service {
   async init(config, services) {
     await super.init(config, services);
     this.spec = await this.services.getSpec();
-    this.client = await MongoDB.MongoClient.connect(this.config.db.url, {
+    this.client = await MongoDB.MongoClient.connect(this.mongoUrl(this.config.db.url), {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -143,6 +143,39 @@ class Storage extends Service {
     } else {
       return result.value.count + 1;
     }
+  }
+
+  /**
+   * Формирование адреса к серверу mongoDB
+   * @param params {String|{schema, user, password, host, port, defaultauthdb, options}}
+   * @returns {string|*}
+   */
+  mongoUrl(params) {
+    if (typeof params === 'object') {
+      let result = params.schema || 'mongodb://';
+      if (params.user) {
+        result += `${encodeURIComponent(params.user)}:${encodeURIComponent(params.password)}@`;
+      }
+      result += params.host || 'localhost';
+      if (params.port) {
+        result += `:${params.port}`;
+      }
+      if (params.defaultauthdb){
+        result += `/${params.defaultauthdb}`;
+      }
+      if (typeof params.options === 'object'){
+        const pairs = [];
+        const keys = Object.keys(params.options);
+        for (const key of keys){
+          pairs.push(`${key}=${encodeURIComponent(params.options[key])}`);
+        }
+        if (pairs.length){
+          result += '/?' + pairs.join('&');
+        }
+      }
+      return result;
+    }
+    return params;
   }
 }
 

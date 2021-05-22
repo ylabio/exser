@@ -41,7 +41,13 @@ module.exports = {
 
   storage: {
     db: {
-      url: 'mongodb://localhost:27017',
+      //url: 'mongodb://user:passw@localhost:27017', // Может быть строкой
+      url: {
+        host: 'localhost',
+        port: '27017',
+        user: '',
+        password: '',
+      },
       name: 'exser',
     },
     models: {},
