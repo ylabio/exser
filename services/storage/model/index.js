@@ -344,7 +344,7 @@ class Model extends Service {
       session.change({access: false});
       // Учитываем признак удаленного
       prev = await this.findOne({filter, session, deleted, doThrow: false});
-      session.restore();
+      session.revert();
     }
     if (!prev) {
       throw new errors.NotFound({filter}, 'Not found for update');
@@ -428,7 +428,7 @@ class Model extends Service {
     session.change({access: false});
     //  Учитываем признак удаленного если требуется
     let prev = await this.findOne({filter, session, deleted, doThrow: false});
-    session.restore();
+    session.revert();
     if (!prev) {
       result = await this.createOne({body, session, validate});
     } else {
@@ -456,7 +456,7 @@ class Model extends Service {
     session.change({access: false});
     // Если объект не будет найден, то выбросится исключение
     let prev = await this.findOne({filter, session, deleted: true, doThrow: true});
-    session.restore();
+    session.revert();
     // Контроль доступа на объект после подготовки всех свойств
     let deny = this.access.isDeny({
       action: `${this.name()}.delete.one`,
@@ -477,7 +477,7 @@ class Model extends Service {
       deleted: false,
       prev
     });
-    session.restore();
+    session.revert();
     return result;
   }
 
@@ -513,7 +513,7 @@ class Model extends Service {
         result++;
       }
     });
-    session.restore();
+    session.revert();
     return result;
   }
 
@@ -532,7 +532,7 @@ class Model extends Service {
       deleted: false,
       doThrow: true
     });
-    session.restore();
+    session.revert();
 
     // Контроль доступа на объект после подготовки всех свойств
     let deny = this.access.isDeny({

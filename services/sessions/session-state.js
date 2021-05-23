@@ -53,7 +53,7 @@ class SessionState {
   /**
    * Откат изменений, сделанных методом change()
    */
-  restore(){
+  revert(){
     this.change(this._history.pop(), false);
   }
 }
