@@ -18,6 +18,7 @@ describe('Storage.base', () => {
       },
       lang: 'ru'
     };
+    data.session.access = false;
   });
 
   beforeEach(async () => {

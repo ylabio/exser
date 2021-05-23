@@ -138,6 +138,9 @@ class Access extends Service {
    * @returns {boolean|*}
    */
   isAllow({action = 'user.create', session = {}, object = null, details = {}, access = undefined}) {
+    if (session.access === false){
+      return true;
+    }
     // Если не передан объект доступов, то ищем в настройках по сессии
     if (access === undefined) {
       details.key = null;
@@ -248,6 +251,9 @@ class Access extends Service {
    * @returns {*}
    */
   makeFilterQuery({action = 'user.create', session = {}}) {
+    if (session.access === false){
+      return true;
+    }
     const accessList = this.getAccess({action, session});
     //console.log(accessList);
     let detail = false;

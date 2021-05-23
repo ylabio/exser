@@ -9,7 +9,7 @@ class Init extends Service {
     return this;
   }
 
-  async start(params){
+  async start(params = {}){
     // Здесь запускаются все требуемые методы инициализации
     //await this.example();
   }

@@ -2,7 +2,7 @@ const Service = require("../service");
 
 class Example extends Service {
 
-  async start(params) {
+  async start(params = {}) {
     console.log('- Work example');
     //console.log('Params:', params);
     // console.log('Config:', this.config);

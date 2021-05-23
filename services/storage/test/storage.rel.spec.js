@@ -18,6 +18,7 @@ describe('Storage.rel', () => {
     /** @type {SessionState} */
     data.session = s.sessions.create();
     data.session.lang = 'ru';
+    data.session.access = false;
     data.session.user = {
       _id: new ObjectID(),
       _type: 'user',
@@ -69,11 +70,12 @@ describe('Storage.rel', () => {
     }
     const object = await s.objects.createOne({body, session: data.session});
     // Ссылаемся на тестовый объект
-    const result = await s.spec.validate('#/components/schemas/test.rel', {
-      user: {_id: object._id},
-    });
+    const result = await s.spec.validate('#/components/schemas/test.rel',
+      {user: {_id: object._id}},
+      {session: data.session}
+    );
     // Вытаскиваем свойства связанного объекта
-    const rel = await result.user.load({session: data.session});
+    const rel = await result.user.load();
     expect(mc.utils.plain(rel)).toMatchObject({
       name: 'Related object',
     });
@@ -109,13 +111,13 @@ describe('Storage.rel', () => {
         _id: test._id.toString(),
         _type: 'test',
         name: 'Related object',
-        i18n1: { ru: 'Рус', en: 'En' }
+        i18n1: {ru: 'Рус', en: 'En'}
       }
     });
 
     const result2 = await s.objects.updateOne({
-      filter:{ _id: result._id},
-      body: { name: 'Test object2'},
+      filter: {_id: result._id},
+      body: {name: 'Test object2'},
       session: data.session
     });
 
@@ -125,11 +127,10 @@ describe('Storage.rel', () => {
         _id: test._id.toString(),
         _type: 'test',
         name: 'Related object',
-        i18n1: { ru: 'Рус', en: 'En' }
+        i18n1: {ru: 'Рус', en: 'En'}
       }
     });
   });
-
 
 
 });

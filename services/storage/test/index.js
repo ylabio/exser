@@ -34,7 +34,7 @@ class Test extends Model {
         relCopy: schema.rel({
           description: 'Тест связи',
           model: 'test',
-          copy: '_id, _type, name, i18n1',
+          copy: '_id, _type, name, i18n1(*)',
           search: 'name, i18n1',
           properties: {
             i18n1: schema.stringi18n({defaultLang: 'gb'})

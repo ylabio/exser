@@ -17,6 +17,7 @@ describe('Storage.order', () => {
       },
       lang: '*',
     };
+    data.session.access = false;
   });
 
   beforeEach(async () => {
@@ -81,7 +82,7 @@ describe('Storage.order', () => {
       await s.objects.createOne({body, session: data.session});
     }
     // data from mongo
-    let list = await s.objects.findMany({sort: {'_id': 1}});
+    let list = await s.objects.findMany({sort: {'_id': 1}, session: data.session});
     for (let i = 0; i < bodyList.length; i++) {
       expect(mc.utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
@@ -105,7 +106,7 @@ describe('Storage.order', () => {
       await s.objects.createOne({body, session: data.session});
     }
     // data from mongo
-    let list = await s.objects.findMany({sort: {'_id': 1}});
+    let list = await s.objects.findMany({sort: {'_id': 1}, session: data.session});
     for (let i = 0; i < bodyList.length; i++) {
       expect(mc.utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
@@ -131,7 +132,7 @@ describe('Storage.order', () => {
       await s.objects.createOne({body, session: data.session});
     }
     // test init
-    let list = await s.objects.findMany({sort: {'_id': 1}});
+    let list = await s.objects.findMany({sort: {'_id': 1}, session: data.session});
     for (let i = 0; i < bodyList.length; i++) {
       expect(mc.utils.plain(list[i])).toMatchObject({
         name: bodyList[i].name,
@@ -163,7 +164,7 @@ describe('Storage.order', () => {
     ];
 
     // test all
-    list = await s.objects.findMany({sort: {'_id': 1}});
+    list = await s.objects.findMany({sort: {'_id': 1}, session: data.session});
     for (let i = 0; i < bodyList.length; i++) {
       expect(mc.utils.plain(list[i])).toMatchObject({
         name: need[i].name,

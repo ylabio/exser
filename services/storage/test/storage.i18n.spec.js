@@ -20,6 +20,7 @@ describe('Storage.i18n', () => {
       },
       lang: 'ru',
     };
+    data.session.access = false;
   });
 
   beforeEach(async () => {

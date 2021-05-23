@@ -101,12 +101,11 @@ class Model extends Service {
    * Выбор одного объекта
    * @param filter {Object} Фильтр для поиска одного объекта (или первого в списке)
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Проверять доступ
    * @param [deleted] {Boolean} Проверять объект на метку "удаленный"
    * @param [doThrow] {Boolean} Кидать исключение если нет доступа или объект не найден. Иначе вернется null
    * @returns {Promise<Object>}
    */
-  async findOne({filter, session, access = true, deleted = true, doThrow = true}) {
+  async findOne({filter, session, deleted = true, doThrow = true}) {
     const object = this.restoreInstances(
       await this.native.findOne(filter), session
     );
@@ -118,12 +117,10 @@ class Model extends Service {
       }
     }
     // Контроль доступа на объект
-    if (access) {
-      let deny = this.access.isDeny({action: `${this.name()}.find.one`, object, session});
-      if (deny) {
-        if (doThrow) throw new errors.Forbidden(deny);
-        return null;
-      }
+    let deny = this.access.isDeny({action: `${this.name()}.find.one`, object, session});
+    if (deny) {
+      if (doThrow) throw new errors.Forbidden(deny);
+      return null;
     }
     return object;
   }
@@ -136,7 +133,6 @@ class Model extends Service {
    * @param [sort] {Object} Параметры сортировки. Ключ название свойства, значение направление сортировки (1/-1)
    * @param session {SessionState} Сессия
    * @param [callback] {Function} Пользовательская функция на каждую выбранную запись
-   * @param [access] {Boolean} Фильтровать с учётом контроля доступа на объекты
    * @param [deleted] {Boolean} Фильтровать объекты с меткой "удаленный"
    * @returns {Promise<Array<Object>>}
    */
@@ -147,15 +143,13 @@ class Model extends Service {
                    sort = {},
                    session,
                    callback,
-                   access = true,
                    deleted = true
                  }) {
     // Фильтр с учётом контроля доступа
-    if (access) {
-      const aclFilter = this.access.makeFilterQuery({action: `${this.name()}.find.many`, session});
-      if (aclFilter === false) return []; // Нет вообще доступа
-      if (aclFilter !== true) filter = query.joinFilter(filter, aclFilter, '$and');
-    }
+    const aclFilter = this.access.makeFilterQuery({action: `${this.name()}.find.many`, session});
+    if (aclFilter === false) return []; // Нет вообще доступа
+    if (aclFilter !== true) filter = query.joinFilter(filter, aclFilter, '$and');
+
     // Не выбирать помеченные удаленными
     if (deleted) {
       filter = query.joinFilter(filter, {_deleted: false}, '$and');
@@ -192,7 +186,6 @@ class Model extends Service {
    * @param [sort] {Object} Параметры сортировки. Ключ название свойства, значение направление сортировки (1/-1)
    * @param session {SessionState} Сессия
    * @param [callback] {Function} Пользовательская функция на каждую выбранную запись
-   * @param [access] {Boolean} Проверять доступ
    * @param [deleted] {Boolean} Проверять объект на метку "удаленный"
    * @returns {Promise<{add: null, change: null, items: null, remove: null}>}
    */
@@ -204,7 +197,6 @@ class Model extends Service {
                       sort = {},
                       session,
                       callback,
-                      access,
                       deleted
                     }) {
     // @todo Применить mc.diff() вместо deepEqual так как надо учитывать экземпляры свойств
@@ -215,7 +207,6 @@ class Model extends Service {
       sort,
       session,
       callback,
-      access,
       deleted
     });
     let result = {
@@ -273,10 +264,9 @@ class Model extends Service {
    * @param body {object} Объект для сохранения в баз
    * @param session {SessionState} Сессия
    * @param [validate] {function} Кастомная функция валидации. Выполняется после базовой валидации
-   * @param [access] {Boolean} Проверять доступ
    * @returns {Promise<Object>}
    */
-  async createOne({body, session, validate, access = true}) {
+  async createOne({body, session, validate}) {
     try {
       let object = {};
       // Инициализация предопределенных свойств. (могут отсутствовать в пользовательской модели)
@@ -306,16 +296,14 @@ class Model extends Service {
       }
 
       // Контроль доступа на объект после подготовки всех свойств
-      if (access) {
-        let deny = this.access.isDeny({
-          action: `${this.name()}.create.one`,
-          object: objectValid,
-          session
-        });
-        if (deny) {
-          // noinspection ExceptionCaughtLocallyJS
-          throw new errors.Forbidden(deny);
-        }
+      let deny = this.access.isDeny({
+        action: `${this.name()}.create.one`,
+        object: objectValid,
+        session
+      });
+      if (deny) {
+        // noinspection ExceptionCaughtLocallyJS
+        throw new errors.Forbidden(deny);
       }
 
       // запись в базу
@@ -346,15 +334,15 @@ class Model extends Service {
    * @param [validate] {function} Кастомная функция валидации. Выполняется после базовой валидации
    * @param session {SessionState} Сессия
    * @param [prev] {Object} Текущий объект в базе. Передаётся, если быд уже выбран для оптимизации.
-   * @param [access] {Boolean} Проверять доступ
    * @param [deleted] {Boolean} Проверять объект на метку "удаленный"
    * @returns {Promise<Object>}
    */
-  async updateOne({filter, body, validate, session, prev, access = true, deleted = true}) {
+  async updateOne({filter, body, validate, session, prev, deleted = true}) {
     // Текущий объект в базе
     if (!prev) {
-      // При выборки не проверяем доступ, но проверяем признак удаленного если требуется
-      prev = await this.findOne({filter, session, access: false, deleted, doThrow: false});
+      // @todo ? При выборки не проверяем доступ
+      // Учитываем признак удаленного
+      prev = await this.findOne({filter, session, deleted, doThrow: false});
     }
     if (!prev) {
       throw new errors.NotFound({filter}, 'Not found for update');
@@ -387,16 +375,14 @@ class Model extends Service {
       }
 
       // Контроль доступа на объект после подготовки всех свойств
-      if (access) {
-        let deny = this.access.isDeny({
-          action: `${this.name()}.update.one`,
-          object: objectValid,
-          session
-        });
-        if (deny) {
-          // noinspection ExceptionCaughtLocallyJS
-          throw new errors.Forbidden(deny);
-        }
+      let deny = this.access.isDeny({
+        action: `${this.name()}.update.one`,
+        object: objectValid,
+        session
+      });
+      if (deny) {
+        // noinspection ExceptionCaughtLocallyJS
+        throw new errors.Forbidden(deny);
       }
 
       // Вычисление отличий
@@ -431,16 +417,16 @@ class Model extends Service {
    * @param body {Object} Изменяемые свойства или тело нового объекта
    * @param [validate] {function} Кастомная функция валидации. Выполняется после базовой валидации
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Проверять доступ
    * @param [deleted] {Boolean} Проверять объект на метку "удаленный" если будет редактирование
    * @returns {Promise<Object>}
    */
-  async upsertOne({filter, body, validate, session, access = true, deleted = true}) {
+  async upsertOne({filter, body, validate, session, deleted = true}) {
     let result;
-    // При выборки не проверяем доступ, но проверяем признак удаленного если требуется
-    let prev = await this.findOne({filter, session, access: false, deleted, doThrow: false});
+    // @todo ? При выборки не проверяем доступ
+    //  Учитываем признак удаленного если требуется
+    let prev = await this.findOne({filter, session, deleted, doThrow: false});
     if (!prev) {
-      result = await this.createOne({body, session, validate, access});
+      result = await this.createOne({body, session, validate});
     } else {
       // Проверять на _delete уже не требуется, так как проверили при выборке
       result = await this.updateOne({
@@ -448,7 +434,6 @@ class Model extends Service {
         body,
         validate,
         session,
-        access,
         deleted: false,
         prev
       });
@@ -460,31 +445,28 @@ class Model extends Service {
    * Пометка объекта признаком удаленный
    * @param filter {Object} Фильтр для пометки одного объекта удаленным
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Проверять доступ
    * @returns {Promise<Object>}
    */
-  async deleteOne({filter, session, access = true}) {
-    // Поиск объекта без контроля доступа, так как контроль ниже на действие delete
+  async deleteOne({filter, session}) {
+    // @todo Поиск объекта без контроля доступа, так как контроль ниже на действие delete
     // Если объект не будет найден, то выбросится исключение
-    let prev = await this.findOne({filter, session, access: false, deleted: true, doThrow: true});
+    let prev = await this.findOne({filter, session, deleted: true, doThrow: true});
     // Контроль доступа на объект после подготовки всех свойств
-    if (access) {
-      let deny = this.access.isDeny({
-        action: `${this.name()}.delete.one`,
-        object: prev,
-        session
-      });
-      if (deny) {
-        // noinspection ExceptionCaughtLocallyJS
-        throw new errors.Forbidden(deny);
-      }
+    let deny = this.access.isDeny({
+      action: `${this.name()}.delete.one`,
+      object: prev,
+      session
+    });
+    if (deny) {
+      // noinspection ExceptionCaughtLocallyJS
+      throw new errors.Forbidden(deny);
     }
-    // Редактирование без проверки доступа, так как уже проверили
+
+    // Редактирование без проверки deleted, так как уже проверили
     return await this.updateOne({
       filter,
       body: {_deleted: true},
       session,
-      access: false,
       deleted: false,
       prev
     });
@@ -495,27 +477,26 @@ class Model extends Service {
    * Возвращается количество удаленных (только тех что уще не были ранее удалены)
    * @param [filter] {Object} Фильтр для удаления множества объектов
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Проверять доступ
    * @returns {Promise.<Object>}
    */
-  async deleteMany({filter = {}, session, access = true}) {
-    // Фильтр с учётом контроля доступа
-    if (access) {
-      const accessFilter = this.access.makeFilterQuery({
-        action: `${this.name()}.delete.many`,
-        session
-      });
-      if (accessFilter === false) return [];
-      if (accessFilter !== true) filter = query.joinFilter(filter, accessFilter, '$and');
-    }
-    // Используется перебор курсором без проверки доступа, так как фильтр уже его учитывает
+  async deleteMany({filter = {}, session}) {
+    // Фильтр с учётом контроля доступа на удаление
+    // @todo При выборке ниже ещё появится доступ на поиск, возможно его нужно убрать
+    const accessFilter = this.access.makeFilterQuery({
+      action: `${this.name()}.delete.many`,
+      session
+    });
+    if (accessFilter === false) return [];
+    if (accessFilter !== true) filter = query.joinFilter(filter, accessFilter, '$and');
+
+    // Используется перебор курсором
     let result = 0;
     await this.findMany({
-      filter, limit: Infinity, session, access: false, deleted: true, callback: async (item) => {
+      filter, limit: Infinity, session, deleted: true, callback: async (item) => {
+        // @todo Не проверять доступ при редактировании
         await this.updateOne({
           filter: {_id: item._id},
           body: {_deleted: true},
-          access: false, // Не проверять доступ при редактировании
           session,
           prev: item
         });
@@ -530,31 +511,28 @@ class Model extends Service {
    * Физическое удаление объекта
    * @param filter {Object} Фильтр для уничтожения одного объекта
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Проверять доступ
    * @returns {Promise.<boolean>}
    */
-  async destroyOne({filter, session, access = true}) {
-    // Выбор объекта без контроля доступа, исключение возможно если объект физически не будет найден
+  async destroyOne({filter, session}) {
+    // @todo Выбор объекта без контроля доступа
     const object = await this.findOne({
       filter,
       session,
-      access: false,
       deleted: false,
       doThrow: true
     });
 
     // Контроль доступа на объект после подготовки всех свойств
-    if (access) {
-      let deny = this.access.isDeny({
-        action: `${this.name()}.destroy.one`,
-        object,
-        session
-      });
-      if (deny) {
-        // noinspection ExceptionCaughtLocallyJS
-        throw new errors.Forbidden(deny);
-      }
+    let deny = this.access.isDeny({
+      action: `${this.name()}.destroy.one`,
+      object,
+      session
+    });
+    if (deny) {
+      // noinspection ExceptionCaughtLocallyJS
+      throw new errors.Forbidden(deny);
     }
+
     // @todo По всем связям оповестить об удалении
     // Удаление из базы
     await this.native.deleteOne(filter);
@@ -565,17 +543,15 @@ class Model extends Service {
    * Подсчёт количества объектов по критерию filter
    * @param filter {Object} Фильтр для подсчёта количества объектов
    * @param session {SessionState} Сессия
-   * @param [access] {Boolean} Считать с учётом контроля доступа на объекты
    * @param [deleted] {Boolean} Считать объекты с меткой "удаленный"
    * @returns {Promise<*|number>}
    */
-  async findCount({filter = {}, session, access = true, deleted = true}) {
+  async findCount({filter = {}, session, deleted = true}) {
     // Фильтр с учётом контроля доступа
-    if (access) {
-      const aclFilter = this.access.makeFilterQuery({action: `${this.name()}.find.count`, session});
-      if (aclFilter === false) return 0; // Нет вообще доступа
-      if (aclFilter !== true) filter = query.joinFilter(filter, aclFilter, '$and');
-    }
+    const aclFilter = this.access.makeFilterQuery({action: `${this.name()}.find.count`, session});
+    if (aclFilter === false) return 0; // Нет вообще доступа
+    if (aclFilter !== true) filter = query.joinFilter(filter, aclFilter, '$and');
+
     // Не выбирать помеченные удаленными
     if (deleted) {
       filter = query.joinFilter(filter, {_deleted: false}, '$and');

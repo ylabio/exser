@@ -25,7 +25,7 @@ class InitState {
    */
   append(item){
     this.values.push(item);
-    return this;
+    return item;
   }
 
   /**

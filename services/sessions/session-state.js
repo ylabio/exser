@@ -10,6 +10,7 @@ class SessionState {
     this.step = 1;
     this.user = null;
     this.lang = 'ru';
+    this.access = true;
   }
 
   /**

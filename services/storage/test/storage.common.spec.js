@@ -15,7 +15,8 @@ describe('Storage.common', () => {
       user: {
         _id: new ObjectID(),
         _type: 'user'
-      }
+      },
+      access: false
     };
   });
 
