@@ -163,6 +163,13 @@ class Services {
   async getAccess(params) {
     return this.import(__dirname + '/access', params);
   }
+
+  /**
+   * @returns {Promise<Init>}
+   */
+  async getInit(params) {
+    return this.import(__dirname + '/init', params);
+  }
 }
 
 module.exports = Services;
