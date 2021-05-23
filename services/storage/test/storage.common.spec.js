@@ -10,14 +10,13 @@ describe('Storage.common', () => {
     // s.test = await s.services.getTest();
     s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
-
-    data.session = {
-      user: {
-        _id: new ObjectID(),
-        _type: 'user'
-      },
-      access: false
+    s.sessions = await s.services.getSessions();
+    data.session = s.sessions.create();
+    data.session.user = {
+      _id: new ObjectID(),
+      _type: 'user'
     };
+    data.session.access = false;
   });
 
   beforeEach(async () => {

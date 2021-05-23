@@ -10,13 +10,13 @@ describe('Storage.order', () => {
     s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
-    data.session = {
-      user: {
-        _id: new ObjectID(),
-        _type: 'user',
-      },
-      lang: '*',
+    s.sessions = await s.services.getSessions();
+    data.session = s.sessions.create();
+    data.session.user = {
+      _id: new ObjectID(),
+      _type: 'user',
     };
+    data.session.lang = '*';
     data.session.access = false;
   });
 

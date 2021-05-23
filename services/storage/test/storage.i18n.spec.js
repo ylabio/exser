@@ -13,13 +13,13 @@ describe('Storage.i18n', () => {
     s.storage = await s.services.getStorage();
     s.spec = await s.services.getSpec();
     s.objects = s.storage.get('test');
-    data.session = {
-      user: {
-        _id: new ObjectID(),
-        _type: 'user',
-      },
-      lang: 'ru',
+    s.sessions = await s.services.getSessions();
+    data.session = s.sessions.create();
+    data.session.user = {
+      _id: new ObjectID(),
+      _type: 'user',
     };
+    data.session.lang = 'ru';
     data.session.access = false;
   });
 
@@ -115,7 +115,11 @@ describe('Storage.i18n', () => {
       i18n3: 'SET'
     }
 
-    const result = await s.objects.updateOne({filer: {_id: object._id}, body: updateBody, session: data.session});
+    const result = await s.objects.updateOne({
+      filer: {_id: object._id},
+      body: updateBody,
+      session: data.session
+    });
 
     expect(mc.utils.plain(result)).toMatchObject({
       name: 'TestChange',

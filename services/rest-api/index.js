@@ -319,11 +319,11 @@ class RestAPI extends Service {
    * @param params
    * @returns {Promise<Test>}
    */
-  async superTest(params) {
-    if (!this._superTest) {
-      this._superTest = require('supertest')(await this.getApp(params));
+  async supertest(params) {
+    if (!this._supertestInstance) {
+      this._supertestInstance = require('supertest')(await this.getApp(params));
     }
-    return this._superTest;
+    return this._supertestInstance;
   }
 }
 

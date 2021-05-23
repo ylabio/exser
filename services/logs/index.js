@@ -31,7 +31,7 @@ class Logs extends Service {
         }
         line.push(`${session.code}.${session.step}@${session.user ? session.user.username : 'guest'}`);
         if (level === '#') {
-          session.incStep();
+          session.step++;
         }
         this.lastLog.code = session.code;
       }

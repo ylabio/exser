@@ -340,9 +340,11 @@ class Model extends Service {
   async updateOne({filter, body, validate, session, prev, deleted = true}) {
     // Текущий объект в базе
     if (!prev) {
-      // @todo ? При выборки не проверяем доступ
+      // При выборки не проверяем доступ
+      session.change({access: false});
       // Учитываем признак удаленного
       prev = await this.findOne({filter, session, deleted, doThrow: false});
+      session.restore();
     }
     if (!prev) {
       throw new errors.NotFound({filter}, 'Not found for update');
@@ -422,9 +424,11 @@ class Model extends Service {
    */
   async upsertOne({filter, body, validate, session, deleted = true}) {
     let result;
-    // @todo ? При выборки не проверяем доступ
+    // При выборки пред значения не проверяем доступ
+    session.change({access: false});
     //  Учитываем признак удаленного если требуется
     let prev = await this.findOne({filter, session, deleted, doThrow: false});
+    session.restore();
     if (!prev) {
       result = await this.createOne({body, session, validate});
     } else {
@@ -448,9 +452,11 @@ class Model extends Service {
    * @returns {Promise<Object>}
    */
   async deleteOne({filter, session}) {
-    // @todo Поиск объекта без контроля доступа, так как контроль ниже на действие delete
+    // Поиск объекта без контроля доступа, так как контроль ниже на действие delete
+    session.change({access: false});
     // Если объект не будет найден, то выбросится исключение
     let prev = await this.findOne({filter, session, deleted: true, doThrow: true});
+    session.restore();
     // Контроль доступа на объект после подготовки всех свойств
     let deny = this.access.isDeny({
       action: `${this.name()}.delete.one`,
@@ -462,14 +468,17 @@ class Model extends Service {
       throw new errors.Forbidden(deny);
     }
 
-    // Редактирование без проверки deleted, так как уже проверили
-    return await this.updateOne({
+    // Редактирование без проверки доступа и deleted, так как уже проверили
+    session.change({access: false});
+    const result = await this.updateOne({
       filter,
       body: {_deleted: true},
       session,
       deleted: false,
       prev
     });
+    session.restore();
+    return result;
   }
 
   /**
@@ -481,7 +490,6 @@ class Model extends Service {
    */
   async deleteMany({filter = {}, session}) {
     // Фильтр с учётом контроля доступа на удаление
-    // @todo При выборке ниже ещё появится доступ на поиск, возможно его нужно убрать
     const accessFilter = this.access.makeFilterQuery({
       action: `${this.name()}.delete.many`,
       session
@@ -489,6 +497,8 @@ class Model extends Service {
     if (accessFilter === false) return [];
     if (accessFilter !== true) filter = query.joinFilter(filter, accessFilter, '$and');
 
+    // Далее контроль доступа не нужно учитывать
+    session.change({access: false});
     // Используется перебор курсором
     let result = 0;
     await this.findMany({
@@ -503,7 +513,7 @@ class Model extends Service {
         result++;
       }
     });
-
+    session.restore();
     return result;
   }
 
@@ -514,13 +524,15 @@ class Model extends Service {
    * @returns {Promise.<boolean>}
    */
   async destroyOne({filter, session}) {
-    // @todo Выбор объекта без контроля доступа
+    // Выбор объекта без контроля доступа
+    session.change({access: false});
     const object = await this.findOne({
       filter,
       session,
       deleted: false,
       doThrow: true
     });
+    session.restore();
 
     // Контроль доступа на объект после подготовки всех свойств
     let deny = this.access.isDeny({

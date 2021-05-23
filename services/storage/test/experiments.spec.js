@@ -10,14 +10,13 @@ describe('Storage.base', () => {
     s.services = new Services().configure(['configs.start.js', 'configs.tests.js']);
     s.storage = await s.services.getStorage();
     s.objects = s.storage.get('test');
-
-    data.session = {
-      user: {
-        _id: new ObjectID(),
-        _type: 'user'
-      },
-      lang: '*'
+    s.sessions = await s.services.getSessions();
+    data.session = s.sessions.create();
+    data.session.user = {
+      _id: new ObjectID(),
+      _type: 'user'
     };
+    data.session.lang = '*';
   });
 
   beforeEach(async () => {
@@ -30,23 +29,26 @@ describe('Storage.base', () => {
         this.p1 = 10;
         this.p2 = 20;
       }
-      toJSON(){
+
+      toJSON() {
         return this.p1;
       }
+
       // valueOf(){
       //   return this.p1;
       // }
-      calculate(){
+      calculate() {
         return 100;
       }
     }
 
-    class B extends A{
+    class B extends A {
       constructor() {
         super();
         this.sub = new A();
       }
     }
+
     const a = new B();
     // console.log(a);
     // console.log(JSON.stringify(a));
@@ -64,13 +66,15 @@ describe('Storage.base', () => {
   });
 
   test('Custom number', async () => {
-    class Order extends Number{
+    class Order extends Number {
       constructor(params) {
         super(params);
       }
-      toJSON(){
+
+      toJSON() {
         return this.valueOf();
       }
+
       toBSON() {
         return this.valueOf();
       }
@@ -94,14 +98,15 @@ describe('Storage.base', () => {
 
   test('Class', async () => {
     class X {
-      static toJSON(){
+      static toJSON() {
         return 'a'
       }
 
-      toJSON(){
+      toJSON() {
         return 'b'
       }
     }
+
     // console.log(JSON.stringify(X));
   });
 });
