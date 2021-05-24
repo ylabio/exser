@@ -33,12 +33,13 @@ class SessionState {
   }
 
   /**
-   * Изменение состояния с записью текущего в историю.
-   * Для отката используется метод revert()
+   * Переопределить состояния, чтобы потом отменить.
+   * Для отмены используется метод revert()
+   * Может использоваться для подмены пользовательских значений на системные для выполнения спец. операций
    * @param patch
    * @param pushHistory
    */
-  commit(patch = {}, pushHistory = true){
+  override(patch = {}, pushHistory = true){
     if (patch) {
       let revert = {};
       const keys = Object.keys(patch);
@@ -56,7 +57,7 @@ class SessionState {
    * Откат изменений, сделанных методом change()
    */
   revert(){
-    this.commit(this._history.pop(), false);
+    this.override(this._history.pop(), false);
   }
 }
 

@@ -347,7 +347,7 @@ class Model extends Service {
     // Текущий объект в базе
     if (!prev) {
       // При выборки не проверяем доступ
-      session.commit({access: false});
+      session.override({access: false});
       // Учитываем признак удаленного
       prev = await this.findOne({filter, session, deleted, doThrow: false});
       session.revert();
@@ -431,7 +431,7 @@ class Model extends Service {
   async upsertOne({filter, body, validate, session, deleted = true}) {
     let result;
     // При выборки пред значения не проверяем доступ
-    session.commit({access: false});
+    session.override({access: false});
     //  Учитываем признак удаленного если требуется
     let prev = await this.findOne({filter, session, deleted, doThrow: false});
     session.revert();
@@ -459,7 +459,7 @@ class Model extends Service {
    */
   async deleteOne({filter, session}) {
     // Поиск объекта без контроля доступа, так как контроль ниже на действие delete
-    session.commit({access: false});
+    session.override({access: false});
     // Если объект не будет найден, то выбросится исключение
     let prev = await this.findOne({filter, session, deleted: true, doThrow: true});
     session.revert();
@@ -475,7 +475,7 @@ class Model extends Service {
     }
 
     // Редактирование без проверки доступа и deleted, так как уже проверили
-    session.commit({access: false});
+    session.override({access: false});
     const result = await this.updateOne({
       filter,
       body: {_deleted: true},
@@ -504,7 +504,7 @@ class Model extends Service {
     if (accessFilter !== true) filter = query.joinFilter(filter, accessFilter, '$and');
 
     // Далее контроль доступа не нужно учитывать
-    session.commit({access: false});
+    session.override({access: false});
     // Используется перебор курсором
     let result = 0;
     await this.findMany({
@@ -531,7 +531,7 @@ class Model extends Service {
    */
   async destroyOne({filter, session}) {
     // Выбор объекта без контроля доступа
-    session.commit({access: false});
+    session.override({access: false});
     const object = await this.findOne({
       filter,
       session,
