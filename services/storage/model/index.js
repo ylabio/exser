@@ -46,17 +46,23 @@ class Model extends Service {
       schema: this.defined
     });
     // Нативный доступ к коллекции mongodb
-    this.native = await this.storage.defineCollection({
-      name: this.name(),
-      collection: this.defined.collection || this.name(),
-      indexes: this.defined.indexes,
-      options: this.defined.options
-    });
+    this.native = await this.defineCollection(false);
     // Схемы в спецификацию
     this.spec.set(`#/components/schemas/storage.${this.name()}`, this.defined);
     // Кэш для выборки изменений
     this.changes = {};
     return this;
+  }
+
+  async defineCollection(clean = false){
+    this.native = await this.storage.defineCollection({
+      name: this.name(),
+      collection: this.defined.collection || this.name(),
+      indexes: this.defined.indexes,
+      options: this.defined.options,
+      redefine: clean
+    });
+    return this.native;
   }
 
   get schema() {

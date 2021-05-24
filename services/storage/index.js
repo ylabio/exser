@@ -51,40 +51,44 @@ class Storage extends Service {
    * Необходимо для работы метода this.newCode()
    * @returns {Promise<void>}
    */
-  async initCounter() {
-    this.counters = await this.defineCollection({name: '_counters'});
+  async initCounter(clean = false) {
+    this.counters = await this.defineCollection({name: '_counters', redefine: clean});
   }
 
   /**
    * Инициализация коллекции
-   * @param name
-   * @param collection
-   * @param indexes
-   * @param options
+   * @param name {String} Название коллекции
+   * @param collection {String} Название коллекции
+   * @param indexes {Object} Индексы
+   * @param options {Object} Опции коллекции
+   * @param redefine {Boolean} Пересоздать коллекцию, удалить данные и заново создать индексы
    * @returns {Promise.<MongoDB.Collection>}
    */
-  async defineCollection({name, collection, indexes, options}) {
+  async defineCollection({name, collection, indexes, options, redefine = false}) {
     if (!name && collection) name = collection;
     if (!collection && name) collection = name;
     if (!name && !collection) throw new TypeError('Not defined collection name');
     if (!indexes) indexes = {};
     if (!options) options = {};
-    const mongoCollection = await new Promise((resolve, reject) => {
-      options.strict = true;
+    options.strict = true; // error if not exist
+    // Попытка подключиться к коллекции
+    let mongoCollection = await new Promise((resolve, reject) => {
       this.db.collection(collection, options, (err, coll) => {
-        if (err !== null) {
-          this.db.createCollection(collection, {}, (err, coll) => {
-            if (err === null) {
-              resolve(coll);
-            } else {
-              reject(err);
-            }
-          });
-        } else {
+        if (err === null) {
           resolve(coll);
+        } else {
+          resolve(null);
         }
       });
     });
+    // Если коллекция есть И надо её переопределить, то просто удаляем её
+    if (mongoCollection && redefine) {
+      await this.db.dropCollection(collection);
+    }
+    // Если коллекции нет ИЛИ её надо переопределить, то создаём её
+    if (!mongoCollection || redefine) {
+      mongoCollection = await this.db.createCollection(collection);
+    }
     // Индексы
     const indexKeys = Object.keys(indexes);
     for (let key of indexKeys) {
@@ -102,16 +106,17 @@ class Storage extends Service {
   }
 
   /**
-   * Удаление всех коллекций в mongodb
+   * Пересоздание коллекций в mongodb
+   * Удаляются все данные, заново создаются коллекции по определениям моделей.
+   * Связка сервисов-моделей с коллекциями не ломается
    * @returns {Promise<void>}
    */
   async clearStorage() {
-    let list = await this.db.listCollections().toArray();
-    for (let collection of list) {
-      if (collection.name.indexOf('system.') === -1) {
-        await this.db.dropCollection(collection.name);
-      }
+    const names = Object.keys(this.models);
+    for (const name of names) {
+      await this.models[name].defineCollection(true);
     }
+    await this.initCounter(true);
   }
 
   /**
@@ -160,16 +165,16 @@ class Storage extends Service {
       if (params.port) {
         result += `:${params.port}`;
       }
-      if (params.defaultauthdb){
+      if (params.defaultauthdb) {
         result += `/${params.defaultauthdb}`;
       }
-      if (typeof params.options === 'object'){
+      if (typeof params.options === 'object') {
         const pairs = [];
         const keys = Object.keys(params.options);
-        for (const key of keys){
+        for (const key of keys) {
           pairs.push(`${key}=${encodeURIComponent(params.options[key])}`);
         }
-        if (pairs.length){
+        if (pairs.length) {
           result += '/?' + pairs.join('&');
         }
       }
