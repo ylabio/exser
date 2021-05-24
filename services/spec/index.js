@@ -411,7 +411,7 @@ class Spec extends Service {
         }
       });
     }
-    console.log(JSON.stringify(issues, null, 2));
+    //console.log(JSON.stringify(issues, null, 2));
     return new utils.errors.Validation(issues);
   };
 }
