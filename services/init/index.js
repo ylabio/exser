@@ -29,12 +29,27 @@ class Init extends Service {
 
   /**
    * Состояние по ключу
-   * @param key
+   * @param key {String} Ключ состояния
    * @returns {InitState}
    */
   getState(key){
     if (!this.states[key]) this.states[key] = new InitState(key);
     return this.states[key];
+  }
+
+  /**
+   * Удаление состояния по ключу
+   * @param key {String} Ключ состояния
+   */
+  deleteState(key){
+    if (this.states[key]) delete this.states[key];
+  }
+
+  /**
+   * Удаление всех состояний
+   */
+  deleteAllState(){
+    this.states = {};
   }
 }
 
