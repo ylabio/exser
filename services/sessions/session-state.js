@@ -38,14 +38,16 @@ class SessionState {
    * @param patch
    * @param pushHistory
    */
-  change(patch = {}, pushHistory = true){
+  commit(patch = {}, pushHistory = true){
     if (patch) {
-      if (pushHistory) {
-        this._history.push(this.toJSON());
-      }
+      let revert = {};
       const keys = Object.keys(patch);
       for (const key of keys) {
+        revert[key] = this[key];
         this[key] = patch[key];
+      }
+      if (pushHistory) {
+        this._history.push(revert);
       }
     }
   }
@@ -54,7 +56,7 @@ class SessionState {
    * Откат изменений, сделанных методом change()
    */
   revert(){
-    this.change(this._history.pop(), false);
+    this.commit(this._history.pop(), false);
   }
 }
 
