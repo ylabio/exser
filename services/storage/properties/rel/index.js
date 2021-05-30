@@ -1,6 +1,6 @@
 const Property = require('./../property');
 const mc = require('merge-change');
-const {query} = require('./../../../../utils');
+const {query, errors} = require('./../../../../utils');
 
 class RelProperty extends Property {
 
@@ -78,6 +78,18 @@ class RelProperty extends Property {
     }
   }
 
+  async toFields(fields){
+    if (fields === true){
+      return this.valueOf();
+    } else {
+      return mc.merge(this.value, await this.load());
+    }
+  }
+
+  isDefine() {
+    return Object.keys(this.value).length > 0;
+  }
+
   /**
    * Загрузка связанного объекта
    * Загруженный объект также будет доступен в this.$rel
@@ -85,7 +97,7 @@ class RelProperty extends Property {
    * @returns {Promise<any>} Связанный объект, если найден
    */
   async load(reload = false) {
-    if (!this.$rel || reload) {
+    if (typeof this.$rel === 'undefined' || reload) {
       const storage = await this.services.getStorage();
       let types = Array.isArray(this.options.model)
         ? this.options.model
@@ -105,7 +117,7 @@ class RelProperty extends Property {
       if (Object.keys(filter).length) {
         // Выборка из коллекции
         for (let type of types) {
-          this.$rel = await storage.get(type).findOne({filter, session: this.session});
+          this.$rel = await storage.get(type).findOne({filter, session: this.session, doThrow: false});
           if (this.$rel) {
             break;
           }
@@ -115,36 +127,41 @@ class RelProperty extends Property {
     return this.$rel;
   }
 
-  async toFields(fields){
-    if (fields === true){
-      return this.valueOf();
-    } else {
-      return mc.merge(this.value, await this.load());
+  async validate(){
+    if (this.options.exists){
+      // Проверка существования связанного объекта
+      const obj = await this.load();
+      if (!obj){
+        throw new errors.Validation({}, 'Relation not found');
+      }
     }
-  }
-
-  isDefine() {
-    return Object.keys(this.value).length > 0;
+    return true;
   }
 
   async beforeSave({object, objectPrev, path, prev, model}) {
 
     if (this.isDefine()) {
+      await this.validate();
+
       if (this.options.copy) {
         const copy = await query.loadByFields({object: await this.load(), fields: this.options.copy});
-        this.value = mc.merge(this.value, copy);
+        if (copy) {
+          this.value = mc.merge(this.value, copy);
+        }
       }
       if (this.options.search) {
         const search = await query.loadByFields({object: await this.load(), fields: this.options.search});
-        const searchFlat = mc.utils.flat(search, '', '.');
-        const keys = Object.keys(searchFlat);
-        const searchList = [];
-        for (let i = 0; i < keys.length; i++) {
-          if (searchFlat[keys[i]] || searchFlat[keys[i]] === 0) {
-            searchList.push(searchFlat[keys[i]]);
+        if (search) {
+          const searchFlat = mc.utils.flat(search, '', '.');
+          const keys = Object.keys(searchFlat);
+          const searchList = [];
+          for (let i = 0; i < keys.length; i++) {
+            if (searchFlat[keys[i]] || searchFlat[keys[i]] === 0) {
+              searchList.push(searchFlat[keys[i]]);
+            }
           }
+          this.value = mc.merge(this.value, {_search: searchList});
         }
-        this.value = mc.merge(this.value, {_search: searchList});
       }
       //console.log('beforeSave', copy, object);
       // 1. Копирование свойств по опции copy

@@ -1,4 +1,5 @@
 const mc = require('merge-change');
+const Ajv = require('ajv').default;
 
 /**
  * Если значение не соответствует указанному классу (конструктору), то создаётся новый экземпляр.
@@ -8,18 +9,29 @@ const mc = require('merge-change');
  * @param services {Services} Менеджер сервисов
  * @returns {Function}
  */
-const keywordMaker = function(spec, services){
+const instanceKeywordMaker = function(spec, services){
   return {
     keyword: 'instance',
     modifying: true,
-    compile: (schema) => {
-      return function (data, {instancePath, rootData}) {
+    async: true,
+    compile: (schema, parentSchema) => {
+      return async function (data, {instancePath, rootData}) {
         const context = this;
         try{
-          mc.utils.set(rootData, instancePath, keywordMaker.exe(data, schema, context.session, services), false, '/');
+          const instance = instanceKeywordMaker.exe(data, schema, context.session, services)
+          mc.utils.set(rootData, instancePath, instance, false, '/');
+          if (instance && typeof instance.validate === 'function'){
+            await instance.validate();
+          }
           return true;
         } catch (e){
-          return false;
+          if (e instanceof Ajv.ValidationError){
+            throw e;
+          } else {
+            throw new Ajv.ValidationError([
+              {keyword: 'instance', message: e.message, parentSchema, params: {}}
+            ])
+          }
         }
       };
     },
@@ -46,7 +58,7 @@ const keywordMaker = function(spec, services){
  * Поддерживаемые классы
  * @type {Object}
  */
-keywordMaker.CLASS_NAMES = {
+instanceKeywordMaker.CLASS_NAMES = {
   'Date': Date,
 };
 
@@ -60,8 +72,8 @@ keywordMaker.CLASS_NAMES = {
  * @param services
  * @returns {null|*}
  */
-keywordMaker.exe = function (value, schema, session = {}, services){
-  const constructor = keywordMaker.CLASS_NAMES[schema.name] || keywordMaker.CLASS_NAMES[schema];
+instanceKeywordMaker.exe = function (value, schema, session = {}, services){
+  const constructor = instanceKeywordMaker.CLASS_NAMES[schema.name] || instanceKeywordMaker.CLASS_NAMES[schema];
   if (!constructor) {
     throw new Error('Неизвестный конструктор');
   }
@@ -84,4 +96,4 @@ keywordMaker.exe = function (value, schema, session = {}, services){
   return value;
 }
 
-module.exports = keywordMaker;
+module.exports = instanceKeywordMaker;

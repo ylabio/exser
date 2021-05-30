@@ -28,7 +28,18 @@ describe('Storage.rel', () => {
       properties: {
         user: schema.rel({
           model: 'test',
-          copy: '_id,_type,name'
+          copy: '_id,_type,name',
+          exists: false
+        }),
+      },
+    });
+    s.spec.set('#/components/schemas/testExists.rel', {
+      type: 'object',
+      properties: {
+        user: schema.rel({
+          model: 'test',
+          copy: '_id,_type,name',
+          exists: true
         }),
       },
     });
@@ -132,5 +143,24 @@ describe('Storage.rel', () => {
     });
   });
 
-
+  test('Not found relation', async () => {
+    // Валидируем объект с невалидным отношением
+    let error;
+    try{
+      const result = await s.spec.validate('#/components/schemas/testExists.rel',
+        {user: {_id: new ObjectID()}},
+        {session: data.session}
+      );
+    } catch (e){
+      error = mc.utils.plain(e);
+    }
+    expect(error).toMatchObject({
+      message: 'Incorrect data',
+      data: {
+        issues: [
+          {path: 'user', rule: 'instance', message: 'Relation not found'}
+        ]
+      }
+    });
+  });
 });

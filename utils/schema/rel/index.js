@@ -11,6 +11,7 @@ const objectId = require('./../objectid');
  * @param [copy] {String} Какие свойства связанного объекта скопировать в отношение. Указываются в формате fields. В отношении окажутся свойства связанного объекта.
  * @param [search] {String} Значения каких свойств связанного объекта скопировать в отношение в её свойство-массив "search". Указываются в формате fields.
  * @param [inverse] {String} Обратное отношение в связанном объекте. Название свойства (путь на него). Связанный объект будет автоматически проставлять (обновлять) обратное отношение.
+ * @param [exists] {Boolean} Проверять существование связываемого объекта
  * @param [tree] {String} Связь-иерархия. Указывается название иерархии, чтобы в связанном объекте найти связь с той же иерархией. Если указано, то в отношении создаётся "материализованный путь" до корня - массив родителей. Для поиска по иерархии.
  * @param [own] {Boolean} Связь-композиция. Используется при прототипировании объекта, чтобы создавать новые экземпляры связанных объектов.
  * @param [proto] {Boolean} Связь-прототип. В объект копируются все свойства прототипа (связанного объекта). Фактически объект создаётся копированием прототипа.
@@ -40,7 +41,8 @@ module.exports = function ({
                              by = ['_id', '_key'],
                              copy = '',
                              search = '',
-                             // inverse = '',
+                             inverse = '',
+                             exists = false,
                              // tree = '',
                              // own = false,
                              // proto = false,
@@ -100,7 +102,7 @@ module.exports = function ({
       typeObject
     ],
     instance: {name: 'RelProperty', emptyToNull: true, createWithNull: true, options: {
-        model, by, copy, search//, inverse, tree, own, proto,
+        model, by, copy, search, exists, inverse, //tree, own, proto,
       }}, // Конвертация в экземпляр RelProperty
     errors: {
       anyOf: {message: 'Incorrect relation', rule: 'type'}, // Обобщение всех ошибок из anyOf
