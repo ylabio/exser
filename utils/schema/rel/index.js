@@ -1,6 +1,6 @@
 const mc = require('merge-change');
 const object = require('./../object');
-const objectId = require('./../objectid');
+const objectId = require('./../objectId');
 /**
  * Схема отношения на другую модель
  * Отношение - это объект с ключами связанного объекта: идентификатором (_id) и типом (_type).
