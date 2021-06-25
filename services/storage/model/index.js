@@ -112,6 +112,11 @@ class Model extends Service {
    * @returns {Promise<Object>}
    */
   async findOne({filter, session, deleted = true, doThrow = true}) {
+    // Не выбирать помеченные удаленными
+    if (deleted) {
+      filter = query.joinFilter(filter, {_deleted: false}, '$and');
+    }
+
     const object = this.restoreInstances(
       await this.native.findOne(filter), session
     );
