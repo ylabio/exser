@@ -61,6 +61,7 @@ class RestAPI extends Service {
     atFirst: null,
     atEnd: null,
     atError: null,
+    atRouters: null,
     atRequest: null,
     atResponse: null
   }) {
@@ -76,9 +77,11 @@ class RestAPI extends Service {
     this.app.use(xmlparser());
     this.app.use(bodyParser.urlencoded({extended: true}));
     this.app.use(express.static('public'));
+
     this.app.use(this.config.path, await this.getRouter({
       pathUrl: this.config.path,
       routers: this.config.routers,
+      atRouters: params.atRouters,
       atRequest: params.atRequest,
       atResponse: params.atResponse,
     }));
@@ -93,7 +96,7 @@ class RestAPI extends Service {
    * Создание роутеров
    * @returns {Promise.<*>}
    */
-  async getRouter({pathUrl, routers, atRequest, atResponse}) {
+  async getRouter({pathUrl, routers, atRouters, atRequest, atResponse}) {
     // Переопределение методов роутера для документирования и обработки ответа
     const router = expressRouter();
     const methods = ['get', 'post', 'put', 'delete', 'options', 'patch', 'head'];
@@ -164,6 +167,10 @@ class RestAPI extends Service {
       this.spec.set('servers', [{url: `${pathUrl}`, description: ''}]);
     }
 
+    // Для подключения сторонних контроллеров к роутеру
+    if (atRouters){
+      atRouters(router, this.services, {base: this.config.url, path: this.config.path});
+    }
     // Подключение всех контроллеров к роутеру
     const routersKeys = Object.keys(routers);
     for (const key of routersKeys) {
