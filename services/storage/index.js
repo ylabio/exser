@@ -6,10 +6,11 @@ class Storage extends Service {
   async init(config, services) {
     await super.init(config, services);
     this.spec = await this.services.getSpec();
-    this.client = await MongoDB.MongoClient.connect(this.mongoUrl(this.config.db.url), {
+    this.client = new MongoDB.MongoClient(this.mongoUrl(this.config.db.url), {
       useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+      useUnifiedTopology: true
+    })
+    await this.client.connect();
     this.db = this.client.db(this.config.db.name);
     this.models = {};
     await this.initModelProperties();
@@ -42,7 +43,7 @@ class Storage extends Service {
       const instance = new ModelClass();
       const type = instance.name();
       this.models[type] = instance;
-      await this.models[type].init(this.config[instance.configName()], this.services);
+      await this.models[type].init(this.config[instance.configName()], this.services, this);
     }
   }
 
@@ -70,7 +71,7 @@ class Storage extends Service {
     if (!name && !collection) throw new TypeError('Not defined collection name');
     if (!indexes) indexes = {};
     if (!options) options = {};
-    options.strict = true; // error if not exist
+    //options.strict = true; // error if not exist
     // Попытка подключиться к коллекции
     let mongoCollection = await new Promise((resolve, reject) => {
       this.db.collection(collection, options, (err, coll) => {
@@ -137,9 +138,8 @@ class Storage extends Service {
    * @returns {Promise<*>}
    */
   async newCode(namespace = {scope: 'global'}) {
-    const result = await this.counters.findAndModify(
+    const result = await this.counters.findOneAndUpdate(
       namespace,
-      [['_id', 'asc']],
       {$inc: {count: 1}},
       {upsert: true},
     );

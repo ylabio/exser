@@ -2,6 +2,7 @@ const utils = require('../utils');
 const fs = require('fs');
 const path = require('path');
 const mc = require('merge-change');
+const Service = require('./service');
 
 class Services {
 
@@ -75,7 +76,7 @@ class Services {
    *
    * @param path {String} Путь на файл сервиса относительно корня приложения
    * @param [params] {Object} Параметры сервису, дополняющие конфиг
-   * @return {Promise<*>}
+   * @return {Promise<Service>}
    */
   async import(path, params = {}) {
     if (!this.list[path]) {
@@ -87,7 +88,7 @@ class Services {
       } else {
         configName = path.split(/[\/\\]/).pop();
       }
-      await this.list[path].init(mc.merge(this.configs[configName], params), this);
+      this.list[path] = this.list[path].init(mc.merge(this.configs[configName], params), this);
     }
     return this.list[path];
   }

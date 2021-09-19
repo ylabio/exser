@@ -33,12 +33,13 @@ class Model extends Service {
    * Инициализация модели
    * @param config {Object} Параметры из конфига
    * @param services {Services} Менеджер сервисов
+   * @param storage {Storage} Сервис storage. (Передаётся, так как им же вызывается init)
    * @returns {Promise.<Model>}
    */
-  async init(config, services) {
+  async init(config, services, storage) {
     await super.init(config, services);
     this.spec = await this.services.getSpec();
-    this.storage = await this.services.getStorage();
+    this.storage = storage;
     this.access = await this.services.getAccess();
     this.defined = this.define();
     this.propertiesWithInstance = this.spec.findPropertiesWithKeyword({
@@ -399,7 +400,7 @@ class Model extends Service {
       }
 
       // Вычисление отличий
-      let diff = mc.utils.diff(prev, objectValid);
+      let diff = mc.utils.diff(prev, objectValid, {});
 
       // Запись отличий
       let operation = this.operationToMongo(diff);

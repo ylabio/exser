@@ -426,7 +426,10 @@ describe('Storage.common', () => {
     const value2 = await s.storage.newCode();
     expect(value2).toEqual(2);
 
-    const value3 = await s.storage.newCode({type: 'some'});
-    expect(value3).toEqual(1);
+    const value3 = await s.storage.newCode();
+    expect(value3).toEqual(3);
+
+    const value4 = await s.storage.newCode({type: 'some'});
+    expect(value4).toEqual(1);
   });
 });
