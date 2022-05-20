@@ -71,24 +71,19 @@ class Storage extends Service {
     if (!name && !collection) throw new TypeError('Not defined collection name');
     if (!indexes) indexes = {};
     if (!options) options = {};
-    //options.strict = true; // error if not exist
-    // Попытка подключиться к коллекции
-    let mongoCollection = await new Promise((resolve, reject) => {
-      this.db.collection(collection, options, (err, coll) => {
-        if (err === null) {
-          resolve(coll);
-        } else {
-          resolve(null);
-        }
-      });
-    });
-    // Если коллекция есть И надо её переопределить, то просто удаляем её
-    if (mongoCollection && redefine) {
+
+    // Проверка существования коллекции
+    const exists = await this.isCollectionExists(name);
+    // Если коллекция есть, но надо её переопределить, то удаляем её
+    if (exists && redefine) {
       await this.db.dropCollection(collection);
     }
+    let mongoCollection;
     // Если коллекции нет ИЛИ её надо переопределить, то создаём её
-    if (!mongoCollection || redefine) {
+    if (!exists || redefine) {
       mongoCollection = await this.db.createCollection(collection);
+    } else {
+      mongoCollection = this.db.collection(collection, options);
     }
     // Индексы
     const indexKeys = Object.keys(indexes);
@@ -104,6 +99,19 @@ class Storage extends Service {
       }
     }
     return mongoCollection;
+  }
+
+  /**
+   * Проверка существования коллекции
+   * @param name {String}
+   * @returns {Promise<boolean>}
+   */
+  async isCollectionExists(name){
+    const collections = await this.db.listCollections().toArray();
+    for (const collection of collections){
+      if (collection.name === name) return true;
+    }
+    return false;
   }
 
   /**

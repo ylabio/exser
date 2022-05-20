@@ -1,4 +1,4 @@
-const ObjectID = require('mongodb').ObjectID;
+const ObjectID = require('mongodb').ObjectId;
 const {errors, strings, schema, query} = require('../../../utils');
 const deepEqual = require('deep-equal');
 const mc = require('merge-change');
